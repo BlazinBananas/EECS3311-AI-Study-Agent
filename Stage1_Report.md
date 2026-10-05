@@ -112,7 +112,7 @@
 8. **Error/Alternative Cases:** If no study history exists yet (a brand new user), the GUI gracefully displays "No data available yet. Start a study session!" instead of crashing or rendering broken charts.
 
 ## 3. UML Class Diagram
-*(Embed your exported Draw.io or Lucidchart image here later using the format: `![Class Diagram](image_path.png)`)*
+[Class Diagram](UML_Class.png)
 
 ## 4. Design Pattern Explanations
 1. **Strategy Pattern:**
