@@ -1,3 +1,5 @@
+**[ 🏠 README ](README.md)** | **[ 📄 Stage 1: Design ](Stage1_Report.md)** | **[ ⚙️ Stage 2: Implementation ](#)**
+***
 # EECS 3311 Course Project Stage 1: Design Report
 **Project Name:** AI Study and Learning Agent
 **Student Name:** Ihsan
