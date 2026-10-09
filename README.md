@@ -1,3 +1,5 @@
+**[ 🏠 README ](README.md)** | **[ 📄 Stage 1: Design ](Stage1_Report.md)** | **[ ⚙️ Stage 2: Implementation ](#)**
+***
 # AI Study and Learning Agent
 
 ![Status](https://img.shields.io/badge/Status-Development-orange?style=flat)
