@@ -112,30 +112,99 @@
 8. **Error/Alternative Cases:** If no study history exists yet (a brand new user), the GUI gracefully displays "No data available yet. Start a study session!" instead of crashing or rendering broken charts.
 
 ## 3. UML Class Diagram
-[Class Diagram](UML_Class.png)
+![Class Diagram](Diagrams/UML%20Class.png)
 
 ## 4. Design Pattern Explanations
 1. **Strategy Pattern:**
-   * **Participating Classes:** `LLMStrategy` (Interface), `LocalOllamaClient`, `CloudOpenAIClient`.
-   * **Problem Addressed:** Needs to swap AI providers without changing the core application logic.
-   * **Rationale:** Allows standardizing the text generation requests.
-*(Repeat for Facade, Factory Method, Command, and Observer)*
+   * **Participating Classes:** `LLMStrategy` (Interface), `LocalOllamaClient`, `CloudOpenAIClient`[cite: 11].
+   * **Problem Addressed:** Needs to swap AI providers without changing the core application logic[cite: 11].
+   * **Rationale:** Allows standardizing the text generation requests[cite: 11].
+
+2. **Facade Pattern:**
+   * **Participating Classes:** `StudyAgentFacade`, `AgentController`, `MainGUI`.
+   * **Problem Addressed:** The GUI needs a simple way to interact with the complex backend (document retrieval, AI generation, and object creation) without being tightly coupled to dozens of classes.
+   * **Rationale:** Provides a unified, high-level interface that makes the subsystem easier to use, routing UI requests to the appropriate backend managers.
+
+3. **Factory Method Pattern:**
+   * **Participating Classes:** `StudyMaterialFactory` (Interface), `FlashcardFactory`, `QuizFactory`, `Flashcard`, `Quiz`.
+   * **Problem Addressed:** The system needs to instantiate complex study objects (like flashcards and quizzes) from raw JSON/text returned by the AI, and this creation logic varies heavily by material type.
+   * **Rationale:** Delegates the instantiation logic to specialized subclasses, keeping the central controller clean and adhering to the Open/Closed Principle if new study tools are added later.
+
+4. **Command Pattern:**
+   * **Participating Classes:** `Command` (Interface), `SubmitAnswerCommand`, `SessionManager`.
+   * **Problem Addressed:** The system must record individual user actions during a study session to allow for tracking, scoring, and potential undo/redo functionality without hardcoding the execution logic into the GUI.
+   * **Rationale:** Encapsulates a request as an object, allowing the session manager to parameterize clients with queues, track execution history, and easily reverse actions.
+
+5. **Observer Pattern:**
+   * **Participating Classes:** `ProgressObserver` (Interface), `AnalyticsDashboard` (Concrete Observer), `SessionManager` (Publisher).
+   * **Problem Addressed:** The analytics dashboard must update in real-time when a study session concludes, but the session logic should not be tightly bound to the UI rendering code.
+   * **Rationale:** Establishes a one-to-many dependency so that when the session manager's state changes (a session ends), all registered observers (dashboards) are automatically notified and updated.
 
 ## 5. Use-Case Diagram
-*(Embed your Use-Case image here later)*
+![Use Case Diagram](Diagrams/Use%20Case.png)
 
-## 6. Detailed Use-Case Descriptions
-*(Write out the text descriptions for your major use cases, including Goal, Preconditions, Main Success Scenario, etc.)*
+### UC06: Generate Adaptive Quiz
+*   **Use Case ID:** UC06
+*   **Use Case Name:** Generate Adaptive Quiz
+*   **Primary Actor(s):** Student
+*   **Goal:** The student generates a multiple-choice quiz tailored to a specific difficulty level.
+*   **Preconditions:** Documents are ingested for the target subject and an AI engine is active.
+*   **Trigger:** The student clicks "Generate Quiz" and selects a difficulty level.
+*   **Main Success Scenario:**
+    1. The student selects the subject, difficulty, and question count, then submits the request.
+    2. The system retrieves relevant local embeddings (`<<include>>`).
+    3. The system appends the difficulty parameters to the prompt and calls the AI (`<<include>>`).
+    4. The AI generates the quiz questions, options, and correct answers.
+    5. The system uses the `QuizFactory` to build the objects and displays them in the GUI.
+*   **Alternative/Exception Flows:**
+    *   *Insufficient Material:* If the chosen folder lacks enough text to generate the requested number of unique questions, the system aborts and prompts the user to ingest more documents.
+*   **Postconditions:** An interactive quiz is loaded into the user interface.
+*   **Related Feature(s):** F06 - Adaptive Quiz Generation.
 
+### UC09: Execute Study Session
+*   **Use Case ID:** UC09
+*   **Use Case Name:** Execute Study Session
+*   **Primary Actor(s):** Student
+*   **Goal:** The student completes a guided session answering study material, and their performance is recorded.
+*   **Preconditions:** A flashcard deck or quiz has been successfully generated and selected.
+*   **Trigger:** The student clicks "Start Study Session".
+*   **Main Success Scenario:**
+    1. The system loads the selected material into the `SessionManager`.
+    2. The GUI displays the first question.
+    3. The student submits an answer.
+    4. The system instantiates a `SubmitAnswerCommand`, executes it to evaluate the answer, and stores it in the history list.
+    5. Steps 2-4 repeat until all questions are answered.
+    6. The system notifies the `ProgressObserver` to update analytics (`<<include>>`).
+    7. The GUI displays a session summary screen.
+*   **Alternative/Exception Flows:**
+    *   *Early Exit:* If the user attempts to close the window mid-session, the system pauses and asks for confirmation to save or discard progress.
+*   **Postconditions:** The student's performance statistics are updated in the local database.
+*   **Related Feature(s):** F09 - Guided Study Session Execution, F10 - Progress Analytics Tracking.
 ## 7. Sequence Diagrams
-*(Embed your Sequence Diagram images here later)*
+![Class Diagram](Diagrams/Sequence.png)
 
 ## 8. Feature-to-Design Traceability Table
 | Feature | Description | Type | Related Use Case | Classes | Key Methods | Sequence Diagram | Design Pattern(s) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **F01** | Dual-Mode Toggle | Deterministic | UC01 - Change Settings | `SettingsGUI`, `AgentController`, `LLMStrategy` | `setEngine()`, `updateStrategy()` | SD01 | Strategy |
-*(Fill in for all 10 features)*
+| **F01** | Dual-Mode AI Toggle | Deterministic | UC01 | `MainGUI`, `AgentController`, `LLMStrategy`, `LocalOllamaClient` | `setEngine()`, `generateResponse()` | SD01 | Strategy, Facade |
+| **F02** | Local Directory Ingestion | Deterministic | UC02 | `MainGUI`, `StudyAgentFacade`, `DocumentManager` | `ingestFolder()` | SD02 | Facade |
+| **F03** | Web-Augmented Search | Hybrid | UC03 | `StudyAgentFacade`, `AgentController`, `LLMStrategy` | `processRequest()`, `generateResponse()` | SD03 | Facade, Strategy |
+| **F04** | Document Chat | AI-based | UC04 | `StudyAgentFacade`, `AgentController`, `DocumentManager`, `LLMStrategy` | `askQuestion()`, `retrieveRelevantChunks()`, `generateResponse()` | SD04 | Facade, Strategy |
+| **F05** | Flashcard Generation | Hybrid | UC05 | `AgentController`, `StudyMaterialFactory`, `FlashcardFactory`, `Flashcard` | `processRequest()`, `createMaterial()` | SD05 | Factory Method |
+| **F06** | Adaptive Quiz Generation | Hybrid | UC06 | `AgentController`, `StudyMaterialFactory`, `QuizFactory`, `Quiz`, `QuizQuestion` | `processRequest()`, `createMaterial()` | SD06 | Factory Method |
+| **F07** | Coding Problem Synthesis | AI-based | UC07 | `StudyAgentFacade`, `AgentController`, `LLMStrategy` | `processRequest()`, `generateResponse()` | SD07 | Facade, Strategy |
+| **F08** | Intelligent Grading | AI-based | UC08 | `StudyAgentFacade`, `AgentController`, `LLMStrategy` | `processRequest()`, `generateResponse()` | SD08 | Facade, Strategy |
+| **F09** | Guided Study Session | Deterministic | UC09 | `SessionManager`, `Command`, `SubmitAnswerCommand`, `QuizQuestion` | `executeCommand()`, `execute()`, `undoLastAction()` | SD09 | Command |
+| **F10** | Progress Analytics | Deterministic | UC10 | `SessionManager`, `ProgressObserver`, `AnalyticsDashboard` | `notifyObservers()`, `update()`, `renderCharts()` | SD10 | Observer |
 
 ## 9. Feature Implementation Explanations
-* **F01 - Dual-Mode Toggle:** When the user clicks the toggle in `SettingsGUI`, it triggers `updateStrategy()` in the `AgentController`. The controller discards the old `LLMStrategy` instance and initializes the new one, ensuring all future `generateResponse()` calls route correctly.
-*(Explain how the classes collaborate for the other 9 features)*
+* **F01 - Dual-Mode Toggle:** When the user clicks the toggle in `SettingsGUI`, it triggers `updateStrategy()` in the `AgentController`. The controller discards the old `LLMStrategy` instance and initializes the new one, ensuring all future `generateResponse()` calls route correctly[cite: 11].
+* **F02 - Local Directory Ingestion:** The `MainGUI` passes the selected file path to the `StudyAgentFacade`, which directs the `DocumentManager` to parse, chunk, and save the text embeddings to the local vector database.
+* **F03 - Web-Augmented Search:** When a query lacks sufficient local context, the `AgentController` triggers the search tool to fetch live data. It appends these web snippets to the prompt before routing it to the active `LLMStrategy`.
+* **F04 - Document Chat:** The `StudyAgentFacade` receives the user's chat message and asks the `DocumentManager` for the top 5 relevant chunks. The `AgentController` combines these into a prompt and calls `generateResponse()` on the active AI strategy.
+* **F05 - Flashcard Generation:** After the `AgentController` receives the raw generated text from the AI strategy, it passes the string to the `FlashcardFactory`. The factory parses the data, instantiates individual `Flashcard` objects, and returns the list to the GUI.
+* **F06 - Adaptive Quiz Generation:** Similar to F05, but the facade injects difficulty modifiers into the prompt. The resulting AI text is routed to the `QuizFactory` to build `QuizQuestion` objects.
+* **F07 - Coding Problem Synthesis:** The GUI sends the topic string to the facade, which instructs the AI strategy to formulate a problem statement. The GUI then renders this statement alongside an input text area.
+* **F08 - Intelligent Grading:** The user's code and the original problem are packaged by the controller and sent to the `LLMStrategy` for evaluation. The AI's qualitative feedback is returned as a string and displayed by the GUI.
+* **F09 - Guided Study Session:** The `SessionManager` controls the flow. Each time the user clicks an answer, a new `SubmitAnswerCommand` is created and executed, allowing the system to track individual answers and store them in a history queue.
+* **F10 - Progress Analytics:** When the `SessionManager` finishes a deck, it calls `notifyObservers()`. The `AnalyticsDashboard` (which implements `ProgressObserver`) receives the trigger, fetches the new history, and rerenders its visual charts.
