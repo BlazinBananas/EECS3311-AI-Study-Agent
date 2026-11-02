@@ -13,7 +13,7 @@
 This repository contains the design, implementation, and testing of an AI-powered study agent. The system is designed to ingest local course materials, generate flashcards and quizzes, and provide a subject-grounded natural language chat. It features the option to toggle between a local self-hosted LLM (for offline privacy and utilization of local hardware) and a cloud-based API.
 
 ## Project Navigation
-* [Stage 1: Software and Agent Design](Stage1_Design_Report.md) 
+* [Stage 1: Software and Agent Design](Stage1_Report.md) 
 * **Stage 2:** Implementation *(Coming Soon)*
 * **Stage 3:** Testing and Validation *(Coming Soon)*
 
