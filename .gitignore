@@ -22,3 +22,15 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Local IDE and build files
+.idea/
+bin/
+target/
+build/
+
+# Local secrets and configurations
+.env
+.env.*
+!.env.example
+config.local.json
