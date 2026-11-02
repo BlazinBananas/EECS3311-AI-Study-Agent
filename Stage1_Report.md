@@ -3,11 +3,16 @@
 **Student Name:** Ihsan
 
 ## 1. Project Overview
-* **Problem and Motivation:** This project is being developed to solve a personal problem I experience with studying complex CS topics independently and the need for a private, offline-capable AI tool.
-* **Target Users:** Undergraduate students, specifically those who need local processing for privacy or cost reasons. 
-* **Agent Description:** A dual-mode AI assistant that ingests local course materials to generate flashcards, quizzes, access the web, and answer questions.
-* **AI/LLM Models:** Ollama for local processing; OpenAI API for cloud processing
-* **Overall Architecture:** Makes use of a Facade-driven UI which Engineers AI prompts in the background, retrieves relevant data using RAG, and sends a request to a Strategy-patterned LLM client.
+* **Problem and Motivation:** This project solves a personal challenge with studying complex Computer Science topics independently by providing a private, offline-capable AI study environment alongside optional cloud acceleration.
+* **Target Users:** Undergraduate CS students who require local processing for data privacy, offline commuting, or zero API cost, with the flexibility to switch to cloud models when needed.
+* **Agent Description:** A dual-mode, retrieval-augmented AI study agent that ingests local course materials (PDF/TXT) to autonomously generate flashcards, adaptive quizzes, and coding problems, grade free-response solutions, execute guided Pomodoro study sessions, and answer subject-grounded questions with automatic web-search fallback.
+* **AI/LLM Models:**
+  * **Local Mode (via Ollama runtime):** `llama3.1:8b-instruct-q4_K_M` for text generation, JSON material synthesis, and grading; `nomic-embed-text:v1.5` for local vector embedding generation.
+  * **Cloud Mode (via OpenAI API):** `gpt-4o-mini` for fast, low-cost text generation and structured JSON outputs; `text-embedding-3-small` for cloud vector embeddings.
+* **Overall Architecture & Agent Decision/Tool Contract:**
+  * **Architecture:** Uses a **Facade** (`StudyAgentFacade`) to decouple both the `MainGUI` and `CLI` from the backend subsystem. Requests route through the `AgentController`, which coordinates retrieval (`DocumentManager`), external tools (`WebSearchTool`), object instantiation (`StudyMaterialFactory`), and LLM inference (`LLMStrategy`).
+  * **Web Augmentation Tool Contract:** When a user submits a query in F04 (Chat) or F03 (Web Search), `AgentController` queries `DocumentManager.retrieveRelevantChunks(query, topK=5)`. Each returned `DocumentChunk` includes a cosine similarity score $\in [0.0, 1.0]$. **Decision Rule:** If `max(similarityScore) < 0.65` AND `userPreferences.isWebSearchEnabled() == true`, the `AgentController` autonomously invokes `WebSearchTool.searchWeb(generatedQuery)`. The tool returns a `List<WebSnippet>` (containing `title`, `url`, and `summaryText`), which the controller injects into the system prompt under a `[WEB_CONTEXT]` tag before calling `LLMStrategy.generateResponse()`. If web search is disabled or offline, the agent aborts external lookup and returns a grounded fallback message.
+  * **Guided Session State Contract:** During F09 (Guided Study Session), `SessionManager` maintains a stateful `StudySession` entity tracking `currentQuestionIndex`, `score`, `elapsedTimeSeconds`, and a `Stack<Command>` history. Every user answer is encapsulated as a `SubmitAnswerCommand` targeting the `StudySession` receiver. Upon reaching the terminal item (`currentQuestionIndex == totalItems`), `SessionManager` transitions the session state to `COMPLETED` and invokes `notifyObservers(SessionStats)` to push deterministic metrics to all registered `ProgressObserver` instances.
 
 ## 2. Detailed Feature Specifications
 
@@ -115,73 +120,251 @@
 ![Class Diagram](Diagrams/UML%20Class.png)
 
 ## 4. Design Pattern Explanations
-1. **Strategy Pattern:**
-   * **Participating Classes:** `LLMStrategy` (Interface), `LocalOllamaClient`, `CloudOpenAIClient`[cite: 11].
-   * **Problem Addressed:** Needs to swap AI providers without changing the core application logic[cite: 11].
-   * **Rationale:** Allows standardizing the text generation requests[cite: 11].
 
-2. **Facade Pattern:**
-   * **Participating Classes:** `StudyAgentFacade`, `AgentController`, `MainGUI`.
-   * **Problem Addressed:** The GUI needs a simple way to interact with the complex backend (document retrieval, AI generation, and object creation) without being tightly coupled to dozens of classes.
-   * **Rationale:** Provides a unified, high-level interface that makes the subsystem easier to use, routing UI requests to the appropriate backend managers.
+### 1. Strategy Pattern
+* **Participating Classes & Roles:**
+  * **Strategy (Interface):** `LLMStrategy` — declares `+ generateResponse(prompt: String, context: List<String>): String`.
+  * **Concrete Strategies:** `LocalOllamaClient` (executes HTTP POST requests to local Ollama endpoint `/api/generate` using `llama3.1:8b`) and `CloudOpenAIClient` (executes HTTPS requests to OpenAI `/v1/chat/completions` using `gpt-4o-mini`).
+  * **Context:** `AgentController` — maintains a reference to `activeStrategy: LLMStrategy` and delegates all inference calls to it via `setEngine(isLocal: boolean)`.
+* **Problem Addressed:** The application must seamlessly switch between local offline execution and cloud API execution at runtime without altering prompt construction, RAG retrieval, or UI logic.
+* **Rationale:** Encapsulates the family of LLM communication algorithms behind a uniform interface, adhering to the Open/Closed Principle.
+* **Consequences Without Pattern:** Without Strategy, `AgentController` would require hardcoded conditional branches (`if (mode == LOCAL) { ... } else if (mode == CLOUD) { ... }`) inside every AI feature (Chat, Flashcards, Quizzes, Coding Problems, Grading), leading to high cyclomatic complexity, tight coupling to HTTP client implementations, and brittle code whenever a new model provider is added.
 
-3. **Factory Method Pattern:**
-   * **Participating Classes:** `StudyMaterialFactory` (Interface), `FlashcardFactory`, `QuizFactory`, `Flashcard`, `Quiz`.
-   * **Problem Addressed:** The system needs to instantiate complex study objects (like flashcards and quizzes) from raw JSON/text returned by the AI, and this creation logic varies heavily by material type.
-   * **Rationale:** Delegates the instantiation logic to specialized subclasses, keeping the central controller clean and adhering to the Open/Closed Principle if new study tools are added later.
+### 2. Facade Pattern
+* **Participating Classes & Roles:**
+  * **Facade:** `StudyAgentFacade` — exposes simplified, high-level entry methods (`ingestFolder()`, `askQuestion()`, `requestFlashcards()`, `requestQuiz()`, `generateCodingProblem()`, `gradeSubmission()`, `startStudySession()`).
+  * **Subsystem Classes:** `AgentController`, `DocumentManager`, `WebSearchTool`, `StudyMaterialFactory`, `SessionManager`.
+  * **Clients:** `MainGUI` and `CLI`.
+* **Problem Addressed:** Both the graphical interface (`MainGUI`) and command-line interface (`CLI`) must trigger complex multi-step workflows involving vector retrieval, prompt engineering, factory parsing, and session state management.
+* **Rationale:** Provides a single unified entry point to the core domain layer so that `MainGUI` and `CLI` share 100% of the business logic without duplicating orchestration code.
+* **Consequences Without Pattern:** Without Facade, both `MainGUI` and `CLI` would directly instantiate and coordinate `DocumentManager`, `WebSearchTool`, `FlashcardFactory`, and `SessionManager`. Any change to the backend RAG pipeline would force duplicate refactoring across both UI layers.
 
-4. **Command Pattern:**
-   * **Participating Classes:** `Command` (Interface), `SubmitAnswerCommand`, `SessionManager`.
-   * **Problem Addressed:** The system must record individual user actions during a study session to allow for tracking, scoring, and potential undo/redo functionality without hardcoding the execution logic into the GUI.
-   * **Rationale:** Encapsulates a request as an object, allowing the session manager to parameterize clients with queues, track execution history, and easily reverse actions.
+### 3. Factory Method Pattern
+* **Participating Classes & Roles:**
+  * **Product (Interface):** `StudyMaterial` — declares common operations `+ getId(): String`, `+ getSubject(): String`, and `+ getSummary(): String`.
+  * **Concrete Products:** `Flashcard` (implements `StudyMaterial`) and `Quiz` (implements `StudyMaterial`, composed of `1..*` `QuizQuestion` objects).
+  * **Creator (Interface):** `StudyMaterialFactory` — declares the factory method `+ createMaterial(aiResponse: String): StudyMaterial`.
+  * **Concrete Creators:** `FlashcardFactory` (parses JSON into `Flashcard` instances) and `QuizFactory` (parses JSON into a `Quiz` aggregate containing `QuizQuestion` instances).
+* **Problem Addressed:** The LLM returns raw, unstructured or semi-structured JSON strings that must be validated, parsed, and converted into strongly-typed domain objects with vastly different internal structures (two-sided cards vs. multi-option scored questions).
+* **Rationale:** Decouples the `AgentController` from the complex JSON parsing and validation rules of specific study material types.
+* **Consequences Without Pattern:** Without Factory Method, `AgentController` would contain monolithic JSON parsing and object construction logic for every material type, violating the Single Responsibility Principle and making it difficult to handle malformed LLM outputs cleanly per type.
 
-5. **Observer Pattern:**
-   * **Participating Classes:** `ProgressObserver` (Interface), `AnalyticsDashboard` (Concrete Observer), `SessionManager` (Publisher).
-   * **Problem Addressed:** The analytics dashboard must update in real-time when a study session concludes, but the session logic should not be tightly bound to the UI rendering code.
-   * **Rationale:** Establishes a one-to-many dependency so that when the session manager's state changes (a session ends), all registered observers (dashboards) are automatically notified and updated.
+### 4. Command Pattern
+* **Participating Classes & Roles:**
+  * **Command (Interface):** `Command` — declares `+ execute(): boolean` and `+ undo(): void`.
+  * **Concrete Command:** `SubmitAnswerCommand` — stores the invocation parameters (`- submittedAnswer: String`, `- question: QuizQuestion`), a reference to the Receiver (`- session: StudySession`), and the **inverse state required for undo** (`- previousScore: int`, `- previousQuestionIndex: int`, `- wasPreviouslyCorrect: boolean`).
+  * **Invoker:** `SessionManager` — maintains `- commandHistory: Stack<Command>`, invokes `cmd.execute()`, pushes executed commands onto the stack, and pops from the stack when `undoLastAction()` is called.
+  * **Receiver:** `StudySession` — holds the mutable session state (`currentScore`, `currentQuestionIndex`, `userAnswersMap`) and provides state-mutating methods `applyAnswer(question, answer)` and `restoreState(previousIndex, previousScore, question)`.
+* **Problem Addressed:** During a guided study session (F09), users need to step through questions, record accuracy deterministically, and undo accidental answer submissions (reverting both the score and active question pointer).
+* **Rationale:** Turning each answer submission into a self-contained object with a snapshot of pre-execution state makes undo/redo deterministic and keeps `MainGUI`/`CLI` free of state-rollback math.
+* **Consequences Without Pattern:** Without Command, `SessionManager` would overwrite session variables in place on each click, making it impossible to reverse an accidental submission without recalculating the entire session from scratch.
 
+### 5. Observer Pattern
+* **Participating Classes & Roles:**
+  * **Subject / Publisher:** `SessionManager` — maintains `- observers: List<ProgressObserver>` and provides `+ attachObserver(obs: ProgressObserver): void`, `+ detachObserver(obs: ProgressObserver): void`, and `+ notifyObservers(stats: SessionStats): void`.
+  * **Observer (Interface):** `ProgressObserver` — declares `+ update(stats: SessionStats): void`.
+  * **Concrete Observer:** `AnalyticsDashboard` — implements `+ update(stats: SessionStats): void` to recalculate subject mastery percentages and invoke `+ renderCharts(): void`.
+* **Problem Addressed:** Completing a study session (F09) must immediately update historical mastery metrics and visual charts in the Analytics module (F10) without tightly coupling session execution to chart rendering.
+* **Rationale:** Establishes a loosely coupled publish-subscribe mechanism so multiple listeners (e.g., GUI charts, CLI stats logger, local persistence writer) can react to session completion independently.
+* **Consequences Without Pattern:** Without Observer, `SessionManager` would need direct hard-coded references to `AnalyticsDashboard` and UI rendering components, preventing sessions from running cleanly in headless/CLI mode and violating loose coupling.
 ## 5. Use-Case Diagram
 ![Use Case Diagram](Diagrams/Use%20Case.png)
 
+## 6. Detailed Use-Case Descriptions
+
+### UC01: Toggle AI Engine (Local/Cloud)
+* **Use Case ID:** UC01
+* **Use Case Name:** Toggle AI Engine (Local/Cloud)
+* **Primary Actor(s):** Student
+* **Goal:** Switch the active inference backend between local Ollama execution and cloud OpenAI execution at runtime.
+* **Preconditions:** The application is running and the settings view or CLI command prompt is active.
+* **Trigger:** The student toggles the engine switch in the GUI settings or enters the engine switch command in the CLI.
+* **Main Success Scenario:**
+  1. The student selects either Local Mode (`llama3.1:8b-instruct-q4_K_M`) or Cloud Mode (`gpt-4o-mini`) and provides endpoint/key settings.
+  2. The UI invokes `StudyAgentFacade.setEngineMode(isLocal, config)`.
+  3. `AgentController.setEngine(isLocal)` instantiates `LocalOllamaClient` or `CloudOpenAIClient` and updates `activeStrategy`.
+  4. The system verifies connectivity with a lightweight ping and displays a confirmation status to the student.
+* **Alternative/Exception Flows:**
+  * *Endpoint Unreachable / Invalid API Key:* If the local Ollama server is offline or the OpenAI key fails validation, the system catches the connection exception, retains the previous `activeStrategy`, and displays a descriptive error message.
+* **Postconditions:** All subsequent calls to `LLMStrategy.generateResponse()` route through the newly selected concrete strategy.
+* **Related Feature(s):** F01 - Dual-Mode AI Engine Toggle.
+
+### UC02: Ingest Local Documents
+* **Use Case ID:** UC02
+* **Use Case Name:** Ingest Local Documents
+* **Primary Actor(s):** Student
+* **Goal:** Parse, chunk, and embed local course files (.pdf and .txt) into a subject-specific vector store.
+* **Preconditions:** A local directory containing course documents exists on the student's machine.
+* **Trigger:** The student clicks "Import Materials" in the GUI or runs the ingest command with a folder path in the CLI.
+* **Main Success Scenario:**
+  1. The student selects a local folder path and target subject ID.
+  2. The UI invokes `StudyAgentFacade.ingestFolder(path)`.
+  3. `DocumentManager` scans the directory, extracts raw text from each valid PDF or TXT file, and splits text into paragraph-sized `DocumentChunk` objects.
+  4. The system computes vector embeddings for each chunk and saves them to the local subject database.
+  5. The system returns an `IngestionResult` listing imported files and updates the course material panel.
+* **Alternative/Exception Flows:**
+  * *Corrupted or Unsupported Files:* If a file is password-protected, corrupted, or in an unsupported format, `DocumentManager` catches the parsing exception, records the filename in `skippedFiles`, continues processing remaining files, and alerts the student which files were skipped.
+* **Postconditions:** The subject vector database is populated with searchable `DocumentChunk` embeddings.
+* **Related Feature(s):** F02 - Local Directory Document Ingestion.
+
+### UC03: Perform Web-Augmented Search
+* **Use Case ID:** UC03
+* **Use Case Name:** Perform Web-Augmented Search
+* **Primary Actor(s):** Student (Primary), Web Search Service (Secondary External Actor)
+* **Goal:** Augment subject answers with live web snippets when local course notes lack sufficient coverage.
+* **Preconditions:** The student has enabled the "Permit Web Search" setting in preferences.
+* **Trigger:** Automatically triggered as an `<<extend>>` flow during UC04 (Document Chat) when local retrieval similarity scores fall below the threshold (`max(similarityScore) < 0.65`).
+* **Main Success Scenario:**
+  1. `AgentController` evaluates local `DocumentChunk` scores and detects that all chunks score below `0.65`.
+  2. `AgentController` formulates a targeted search query and calls `WebSearchTool.searchWeb(query)`.
+  3. `WebSearchTool` queries the external Web Search Service over HTTP and parses the top 3 results into `List<WebSnippet>`.
+  4. `AgentController` injects the `WebSnippet` texts and URLs into the prompt context and invokes `LLMStrategy.generateResponse()` (`<<include>>`).
+  5. The UI displays the synthesized answer alongside explicit source URL citations.
+* **Alternative/Exception Flows:**
+  * *Network Disconnected / Search Timeout:* If the HTTP request fails, `WebSearchTool` throws a tool exception caught by `AgentController`, which returns a safe fallback message stating that local notes lack the topic and the internet is currently unreachable.
+* **Postconditions:** The student receives a web-grounded response with source URLs without modifying the local course database.
+* **Related Feature(s):** F03 - Web-Augmented Search Tool, F04 - Subject-Grounded Natural Language Chat.
+
+### UC04: Chat with Subject Material
+* **Use Case ID:** UC04
+* **Use Case Name:** Chat with Subject Material
+* **Primary Actor(s):** Student (Primary), Cloud API (Secondary when in Cloud Mode)
+* **Goal:** Answer a natural-language question strictly grounded in the ingested course materials for a chosen subject.
+* **Preconditions:** The target subject folder contains ingested documents (UC02) and an AI engine is active (UC01).
+* **Trigger:** The student selects a subject and submits a question in the chat interface.
+* **Main Success Scenario:**
+  1. The student enters a natural-language question for a specific subject ID.
+  2. The system calls `DocumentManager.retrieveRelevantChunks(query)` to fetch the top 5 matching `DocumentChunk` objects (`<<include>>`).
+  3. `AgentController` verifies that similarity scores meet the grounding threshold ($\ge 0.65$) and packages the chunks and question into a grounded prompt.
+  4. `AgentController` invokes `LLMStrategy.generateResponse(prompt, context)` (`<<include>>`).
+  5. The system wraps the generated answer and source chunks into a `ChatResponse` object and renders them in the UI with a "View Source Material" option.
+* **Alternative/Exception Flows:**
+  * *Empty Subject Folder:* If the selected subject has zero ingested chunks, the system halts before calling the LLM and prompts the user to import materials via UC02.
+  * *Low Local Similarity:* If `max(similarityScore) < 0.65` and web search is enabled, the system triggers UC03 (`<<extend>>`).
+* **Postconditions:** The grounded response and citations are appended to the active chat transcript.
+* **Related Feature(s):** F04 - Subject-Grounded Natural Language Chat.
+
+### UC05: Generate Flashcard Deck
+* **Use Case ID:** UC05
+* **Use Case Name:** Generate Flashcard Deck
+* **Primary Actor(s):** Student
+* **Goal:** Generate a validated deck of digital study flashcards from a selected subject's ingested documents.
+* **Preconditions:** The selected subject contains ingested documents (UC02) and an AI engine is active (UC01).
+* **Trigger:** The student selects a subject, specifies a card count, and invokes "Generate Flashcards".
+* **Main Success Scenario:**
+  1. The student inputs the subject ID and desired number of flashcards.
+  2. `AgentController` retrieves relevant text chunks via `DocumentManager.retrieveRelevantChunks()` (`<<include>>`).
+  3. `AgentController` requests structured JSON term/definition pairs from `LLMStrategy.generateResponse()` (`<<include>>`).
+  4. `AgentController` passes the raw JSON output to `FlashcardFactory.createMaterial(aiResponse)`.
+  5. `FlashcardFactory` parses and instantiates a collection of `Flashcard` objects implementing `StudyMaterial` and returns them to the UI deck viewer.
+* **Alternative/Exception Flows:**
+  * *Malformed AI JSON Output:* If `FlashcardFactory` encounters a JSON parsing error, `AgentController` silently retries the LLM request once with a stricter formatting prompt. If parsing fails a second time, the system displays a generation error message.
+* **Postconditions:** A new `Flashcard` deck is stored in memory and displayed for review or session execution.
+* **Related Feature(s):** F05 - Flashcard Deck Generation.
+
 ### UC06: Generate Adaptive Quiz
-*   **Use Case ID:** UC06
-*   **Use Case Name:** Generate Adaptive Quiz
-*   **Primary Actor(s):** Student
-*   **Goal:** The student generates a multiple-choice quiz tailored to a specific difficulty level.
-*   **Preconditions:** Documents are ingested for the target subject and an AI engine is active.
-*   **Trigger:** The student clicks "Generate Quiz" and selects a difficulty level.
-*   **Main Success Scenario:**
-    1. The student selects the subject, difficulty, and question count, then submits the request.
-    2. The system retrieves relevant local embeddings (`<<include>>`).
-    3. The system appends the difficulty parameters to the prompt and calls the AI (`<<include>>`).
-    4. The AI generates the quiz questions, options, and correct answers.
-    5. The system uses the `QuizFactory` to build the objects and displays them in the GUI.
-*   **Alternative/Exception Flows:**
-    *   *Insufficient Material:* If the chosen folder lacks enough text to generate the requested number of unique questions, the system aborts and prompts the user to ingest more documents.
-*   **Postconditions:** An interactive quiz is loaded into the user interface.
-*   **Related Feature(s):** F06 - Adaptive Quiz Generation.
+* **Use Case ID:** UC06
+* **Use Case Name:** Generate Adaptive Quiz
+* **Primary Actor(s):** Student
+* **Goal:** Generate a multiple-choice `Quiz` tailored to a specific difficulty level (Beginner, Intermediate, Advanced).
+* **Preconditions:** Documents are ingested for the target subject (UC02) and an AI engine is active (UC01).
+* **Trigger:** The student clicks "Generate Quiz" and selects a subject, difficulty level, and question count.
+* **Main Success Scenario:**
+  1. The student submits the subject ID, difficulty level, and number of questions.
+  2. `StudyAgentFacade` translates the difficulty selection into prompt constraints and forwards the request to `AgentController`.
+  3. `AgentController` retrieves relevant local embeddings from `DocumentManager` (`<<include>>`) and calls `LLMStrategy.generateResponse()` (`<<include>>`).
+  4. `AgentController` passes the LLM response to `QuizFactory.createMaterial(aiResponse)`.
+  5. `QuizFactory` constructs a `Quiz` aggregate containing `1..*` `QuizQuestion` objects and returns it to the UI.
+* **Alternative/Exception Flows:**
+  * *Insufficient Source Material:* If the subject folder contains fewer chunks than required to synthesize the requested question count, the system aborts and alerts the student to ingest additional documents.
+  * *Invalid Question Schema:* If a generated question lacks options or a valid `correctAnswerIndex`, `QuizFactory` triggers a single retry via `AgentController`.
+* **Postconditions:** A validated `Quiz` object is loaded and ready for interactive execution in UC09.
+* **Related Feature(s):** F06 - Adaptive Quiz Generation.
+
+### UC07: Synthesize Coding Problem
+* **Use Case ID:** UC07
+* **Use Case Name:** Synthesize Coding Problem
+* **Primary Actor(s):** Student
+* **Goal:** Generate a custom programming or algorithmic practice problem with starter code and constraints for a CS topic.
+* **Preconditions:** An AI engine is configured and active (UC01).
+* **Trigger:** The student enters a CS topic (e.g., "Java Observer Pattern") and clicks "Generate Practice Problem".
+* **Main Success Scenario:**
+  1. The student submits a topic string via the GUI or CLI.
+  2. `StudyAgentFacade.generateCodingProblem(topic)` delegates to `AgentController`.
+  3. `AgentController` retrieves any matching local notes (if available) and prompts `LLMStrategy.generateResponse()` (`<<include>>`).
+  4. The system parses the response into a `CodingProblem` object (`problemTitle`, `description`, `starterCode`, `constraints`) and renders it alongside a solution editor.
+* **Alternative/Exception Flows:**
+  * *Off-Topic or Unsafe Prompt:* If the input string is empty or unrelated to academic coursework, the controller rejects the request and prompts the user for a valid CS topic.
+* **Postconditions:** An active `CodingProblem` is displayed in the workspace awaiting student submission (UC08).
+* **Related Feature(s):** F07 - Coding Problem Synthesis.
+
+### UC08: Submit Answer for Intelligent Grading
+* **Use Case ID:** UC08
+* **Use Case Name:** Submit Answer for Intelligent Grading
+* **Primary Actor(s):** Student
+* **Goal:** Evaluate a free-response or code solution semantically and return a numerical score, qualitative feedback, and hints.
+* **Preconditions:** A `CodingProblem` (UC07) or open-ended question is currently active.
+* **Trigger:** The student types a code/text solution and clicks "Submit Answer".
+* **Main Success Scenario:**
+  1. The student submits their solution text via the UI.
+  2. `StudyAgentFacade.gradeSubmission(problem, userSolution)` performs deterministic validation to confirm the submission is non-empty.
+  3. `AgentController` constructs a rubric-based grading prompt combining the `CodingProblem` and `userSolution`, then invokes `LLMStrategy.generateResponse()` (`<<include>>`).
+  4. The system parses the output into a `GradeEvaluation` domain object (`score`, `feedback`, `hints`) and displays it below the editor.
+* **Alternative/Exception Flows:**
+  * *Empty or Trivial Submission:* Deterministic validation intercepts blank or single-character inputs prior to LLM invocation and displays "Please enter a valid answer before submitting."
+* **Postconditions:** The student receives structured feedback and a score without revealing the full canonical solution prematurely.
+* **Related Feature(s):** F08 - Intelligent Answer Grading & Feedback.
 
 ### UC09: Execute Study Session
-*   **Use Case ID:** UC09
-*   **Use Case Name:** Execute Study Session
-*   **Primary Actor(s):** Student
-*   **Goal:** The student completes a guided session answering study material, and their performance is recorded.
-*   **Preconditions:** A flashcard deck or quiz has been successfully generated and selected.
-*   **Trigger:** The student clicks "Start Study Session".
-*   **Main Success Scenario:**
-    1. The system loads the selected material into the `SessionManager`.
-    2. The GUI displays the first question.
-    3. The student submits an answer.
-    4. The system instantiates a `SubmitAnswerCommand`, executes it to evaluate the answer, and stores it in the history list.
-    5. Steps 2-4 repeat until all questions are answered.
-    6. The system notifies the `ProgressObserver` to update analytics (`<<include>>`).
-    7. The GUI displays a session summary screen.
-*   **Alternative/Exception Flows:**
-    *   *Early Exit:* If the user attempts to close the window mid-session, the system pauses and asks for confirmation to save or discard progress.
-*   **Postconditions:** The student's performance statistics are updated in the local database.
-*   **Related Feature(s):** F09 - Guided Study Session Execution, F10 - Progress Analytics Tracking.
+* **Use Case ID:** UC09
+* **Use Case Name:** Execute Study Session
+* **Primary Actor(s):** Student
+* **Goal:** Complete a timed, interactive study session over a generated deck or quiz with full undo support and automatic analytics recording.
+* **Preconditions:** A `Quiz` or `Flashcard` deck has been generated (UC05/UC06) and selected.
+* **Trigger:** The student clicks "Start Study Session" or launches a session from the CLI.
+* **Main Success Scenario:**
+  1. `SessionManager.loadSession(quiz)` initializes a `StudySession` receiver and resets the command history stack.
+  2. The UI displays the current question and timer.
+  3. The student selects an answer choice, instantiating `SubmitAnswerCommand(session, question, choice)`.
+  4. `SessionManager.executeCommand(cmd)` saves `previousScore` and `previousQuestionIndex`, grades the answer via `QuizQuestion.verifyAnswer()`, mutates `StudySession`, and pushes the command onto `commandHistory`.
+  5. Steps 2–4 repeat until all items in the session are answered.
+  6. Upon completion, `SessionManager` builds a `SessionStats` summary and invokes `notifyObservers(stats)` (`<<include>>` UC10).
+  7. The UI renders the final session summary screen.
+* **Alternative/Exception Flows:**
+  * *Undo Last Answer:* If the student clicks "Undo", `SessionManager.undoLastAction()` pops the top `SubmitAnswerCommand` and invokes `cmd.undo()`, restoring `StudySession` to `previousQuestionIndex` and `previousScore`.
+  * *Early Exit:* If the student exits mid-session, the system pauses the timer and prompts whether to discard or save partial progress.
+* **Postconditions:** The session is marked `COMPLETED` and historical mastery statistics are broadcasted to registered observers.
+* **Related Feature(s):** F09 - Guided Study Session Execution, F10 - Progress Analytics Tracking.
+
+### UC10: View Progress Analytics
+* **Use Case ID:** UC10
+* **Use Case Name:** View Progress Analytics
+* **Primary Actor(s):** Student
+* **Goal:** View real-time subject mastery percentages and historical performance charts across completed study sessions.
+* **Preconditions:** The `AnalyticsDashboard` is registered as a `ProgressObserver` on `SessionManager`.
+* **Trigger:** Automatically triggered via `SessionManager.notifyObservers(stats)` at the end of UC09, or manually when the student opens the "Analytics" tab.
+* **Main Success Scenario:**
+  1. `SessionManager` invokes `update(stats: SessionStats)` on all attached `ProgressObserver` instances (`AnalyticsDashboard`).
+  2. `AnalyticsDashboard` aggregates historical accuracy counts per subject folder and recalculates mastery percentages.
+  3. When the student navigates to the Analytics view, `AnalyticsDashboard.renderCharts()` displays subject mastery bars and session history.
+* **Alternative/Exception Flows:**
+  * *No Study History Available:* If zero sessions have been completed, `AnalyticsDashboard` renders a friendly empty-state message ("No data available yet. Start a study session!") rather than division-by-zero or empty charts.
+* **Postconditions:** The visual analytics dashboard reflects the latest session metrics accurately.
+* **Related Feature(s):** F10 - Progress Analytics Tracking.
+
 ## 7. Sequence Diagrams
-![Class Diagram](Diagrams/Sequence.png)
+
+### SD01–SD04: Engine Configuration, Document Ingestion, Grounded Chat & Web Search Fallback
+![Sequence Diagram SD01-SD04](Diagrams/SD01_SD04_Sequence.png)
+
+### SD05–SD06: Flashcard & Adaptive Quiz Generation with Factory JSON Retry
+![Sequence Diagram SD05-SD06](Diagrams/SD05_SD06_Sequence.png)
+
+### SD07–SD08: Coding Problem Synthesis & Intelligent Grading with Input Validation Guard
+![Sequence Diagram SD07-SD08](Diagrams/SD07_SD08_Sequence.png)
+
+### SD09–SD10: Guided Study Session (Command Undo) & Progress Analytics (Observer)
+![Sequence Diagram SD09-SD10](Diagrams/SD09_SD10_Sequence.png)
 
 ## 8. Feature-to-Design Traceability Table
 | Feature | Description | Type | Related Use Case | Classes | Key Methods | Sequence Diagram | Design Pattern(s) |
@@ -198,13 +381,14 @@
 | **F10** | Progress Analytics | Deterministic | UC10 | `SessionManager`, `ProgressObserver`, `AnalyticsDashboard` | `notifyObservers()`, `update()`, `renderCharts()` | SD10 | Observer |
 
 ## 9. Feature Implementation Explanations
-* **F01 - Dual-Mode Toggle:** When the user clicks the toggle in `SettingsGUI`, it triggers `updateStrategy()` in the `AgentController`. The controller discards the old `LLMStrategy` instance and initializes the new one, ensuring all future `generateResponse()` calls route correctly[cite: 11].
-* **F02 - Local Directory Ingestion:** The `MainGUI` passes the selected file path to the `StudyAgentFacade`, which directs the `DocumentManager` to parse, chunk, and save the text embeddings to the local vector database.
-* **F03 - Web-Augmented Search:** When a query lacks sufficient local context, the `AgentController` triggers the search tool to fetch live data. It appends these web snippets to the prompt before routing it to the active `LLMStrategy`.
-* **F04 - Document Chat:** The `StudyAgentFacade` receives the user's chat message and asks the `DocumentManager` for the top 5 relevant chunks. The `AgentController` combines these into a prompt and calls `generateResponse()` on the active AI strategy.
-* **F05 - Flashcard Generation:** After the `AgentController` receives the raw generated text from the AI strategy, it passes the string to the `FlashcardFactory`. The factory parses the data, instantiates individual `Flashcard` objects, and returns the list to the GUI.
-* **F06 - Adaptive Quiz Generation:** Similar to F05, but the facade injects difficulty modifiers into the prompt. The resulting AI text is routed to the `QuizFactory` to build `QuizQuestion` objects.
-* **F07 - Coding Problem Synthesis:** The GUI sends the topic string to the facade, which instructs the AI strategy to formulate a problem statement. The GUI then renders this statement alongside an input text area.
-* **F08 - Intelligent Grading:** The user's code and the original problem are packaged by the controller and sent to the `LLMStrategy` for evaluation. The AI's qualitative feedback is returned as a string and displayed by the GUI.
-* **F09 - Guided Study Session:** The `SessionManager` controls the flow. Each time the user clicks an answer, a new `SubmitAnswerCommand` is created and executed, allowing the system to track individual answers and store them in a history queue.
-* **F10 - Progress Analytics:** When the `SessionManager` finishes a deck, it calls `notifyObservers()`. The `AnalyticsDashboard` (which implements `ProgressObserver`) receives the trigger, fetches the new history, and rerenders its visual charts.
+
+* **F01 - Dual-Mode AI Engine Toggle (Deterministic):** The user toggles the engine mode in `MainGUI` or `CLI`, which calls `StudyAgentFacade.setEngineMode(isLocal: boolean, config: EngineConfig): boolean`. The facade forwards the call to `AgentController.setEngine(isLocal: boolean)`, which instantiates either `LocalOllamaClient` or `CloudOpenAIClient` and assigns it to `activeStrategy: LLMStrategy`, returning a `boolean` confirmation status to the UI.
+* **F02 - Local Directory Ingestion (Deterministic):** The user selects a folder path, invoking `StudyAgentFacade.ingestFolder(path: String): IngestionResult`. The facade delegates to `DocumentManager.ingestFolder(path: String)`, which iterates over `.pdf` and `.txt` files, extracts text chunks into `List<DocumentChunk>`, computes vector embeddings, persists them to the local vector store, and returns an `IngestionResult` domain object containing `importedFileNames: List<String>` and `skippedFiles: List<String>`.
+* **F03 - Web-Augmented Search Tool (Hybrid):** During a query, `AgentController.processRequest()` inspects the `List<DocumentChunk>` returned by `DocumentManager.retrieveRelevantChunks(query: String)`. If the highest similarity score is `< 0.65` and web search is permitted, `AgentController` calls `WebSearchTool.searchWeb(query: String): List<WebSnippet>`. The returned `WebSnippet` objects (`title`, `url`, `snippet`) are formatted into the prompt and sent to `LLMStrategy.generateResponse(prompt, context): String`, returning a synthesized `ChatResponse` object containing both the answer text and source URLs.
+* **F04 - Subject-Grounded Natural Language Chat (AI-based):** `MainGUI`/`CLI` invokes `StudyAgentFacade.askQuestion(subjectId: String, query: String): ChatResponse`. The facade calls `AgentController.processRequest()`, which retrieves the top-5 `List<DocumentChunk>` via `DocumentManager.retrieveRelevantChunks(query: String)` and passes them to `LLMStrategy.generateResponse(prompt: String, context: List<String>): String`. The controller wraps the AI text and source chunks into a `ChatResponse` domain object returned to the UI.
+* **F05 - Flashcard Deck Generation (Hybrid):** The UI calls `StudyAgentFacade.requestFlashcards(subjectId: String, count: int): List<Flashcard>`. `AgentController` fetches subject chunks from `DocumentManager`, prompts `LLMStrategy.generateResponse()`, and passes the raw JSON string to `FlashcardFactory.createMaterial(aiResponse: String): StudyMaterial`. The factory validates and returns a `FlashcardDeck` (or `List<Flashcard>` domain objects) back through the facade to the UI.
+* **F06 - Adaptive Quiz Generation (Hybrid):** The UI calls `StudyAgentFacade.requestQuiz(subjectId: String, difficulty: String, count: int): Quiz`. `StudyAgentFacade` injects the difficulty rubric into the request and calls `AgentController.processRequest()`. After `LLMStrategy.generateResponse()` returns the JSON quiz structure, `QuizFactory.createMaterial(aiResponse: String): Quiz` instantiates a `Quiz` aggregate populated with `List<QuizQuestion>` domain objects and returns it to the UI.
+* **F07 - Coding Problem Synthesis (AI-based):** The UI invokes `StudyAgentFacade.generateCodingProblem(topic: String): CodingProblem`. `AgentController` constructs a curriculum-aligned prompt and invokes `LLMStrategy.generateResponse()`. The resulting structured response is parsed into a `CodingProblem` domain object (`problemTitle`, `description`, `starterCode`, `constraints`) and returned to the UI editor.
+* **F08 - Intelligent Answer Grading & Feedback (AI-based):** The user submits code/text via `StudyAgentFacade.gradeSubmission(problem: CodingProblem, userSolution: String): GradeEvaluation`. Deterministic validation first checks that `userSolution` is non-empty. `AgentController` then sends the problem and solution to `LLMStrategy.generateResponse()`, which returns structured evaluation data parsed into a `GradeEvaluation` domain object (`score: int`, `feedback: String`, `hints: List<String>`).
+* **F09 - Guided Study Session Execution (Deterministic):** The UI starts a session via `StudyAgentFacade.startStudySession(quiz: Quiz): StudySession`, which initializes `SessionManager.loadSession(quiz)`. For each answered question, the UI creates a `SubmitAnswerCommand(session, question, choice)` and passes it to `SessionManager.executeCommand(cmd: Command): AnswerResult`. `SubmitAnswerCommand.execute()` snapshots `previousScore` and `previousQuestionIndex`, updates the `StudySession` receiver, and pushes the command onto `commandHistory: Stack<Command>`. Calling `SessionManager.undoLastAction()` pops the top `Command` and invokes `cmd.undo()`, restoring the exact prior `StudySession` state.
+* **F10 - Progress Analytics Tracking (Deterministic):** When `SessionManager` completes the final question in a `StudySession`, it aggregates a `SessionStats` domain object (`subjectId`, `correctCount`, `totalQuestions`, `timestamp`) and calls `SessionManager.notifyObservers(stats: SessionStats)`. Each attached `ProgressObserver` (specifically `AnalyticsDashboard.update(stats: SessionStats)`) updates its mastery model and invokes `renderCharts(): DashboardView` to refresh the UI.
