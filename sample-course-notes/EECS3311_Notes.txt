@@ -1,0 +1,21 @@
+EECS 3311 Software Design - Course Study Notes
+
+SOLID Design Principles:
+1. Single Responsibility Principle (SRP): Every class should have only one responsibility and one reason to change, promoting high cohesion.
+2. Open/Closed Principle (OCP): Software entities should be open for extension but closed for modification.
+3. Liskov Substitution Principle (LSP): Subtypes must be substitutable for their base types without altering the desirable properties of the program.
+4. Interface Segregation Principle (ISP): Clients should not be forced to depend upon interfaces that they do not use, promoting low coupling.
+5. Dependency Inversion Principle (DIP): High-level modules should depend on abstractions (interfaces) rather than concrete implementations.
+
+Gang of Four (GoF) Design Patterns:
+Creational Patterns abstract the object instantiation process. Factory Method defines an interface for creating an object but lets subclasses decide which class to instantiate. Singleton ensures a class has only one instance. Builder separates the construction of a complex object from its representation. Prototype creates new objects by cloning an existing instance via shallow copy or deep copy.
+
+Structural Patterns compose classes and objects into larger structures. Facade provides a unified higher-level interface to a set of interfaces in a subsystem. Adapter converts the interface of a class into another interface clients expect. Decorator dynamically attaches additional responsibilities to an object by wrapping it. Proxy provides a surrogate placeholder to control access to another object.
+
+Behavioral Patterns manage algorithms and communication between objects. Strategy defines a family of interchangeable algorithms encapsulated behind a common interface. Command encapsulates a request as an object, supporting undoable operations by storing pre-execution state in a history stack. Observer defines a one-to-many publish-subscribe dependency so dependents update automatically when a subject changes state. Visitor uses double dispatch to separate algorithms from the object structure.
+
+Design by Contract (DbC) and JML:
+A contract between a Client and a Supplier consists of preconditions (requires), postconditions (ensures), and class invariants (invariant). If a precondition is violated, the fault lies with the Client. If the precondition is met but the postcondition or invariant fails, the fault lies with the Supplier. In JML, \old(e) refers to the pre-state value of expression e, \result refers to the return value, and pure indicates a side-effect-free method.
+
+Software Testing and TDD:
+Test-Driven Development (TDD) follows the Red-Green-Refactor cycle using JUnit. Control Flow Graphs (CFGs) model basic blocks and branches to measure line and path coverage using JaCoCo. Input Space Partitioning (ISP) requires blocks to satisfy disjointness (no overlap) and completeness (full domain coverage), combined with Boundary-Value Analysis (BVA) at decision thresholds.

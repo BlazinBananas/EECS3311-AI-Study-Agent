@@ -31,6 +31,14 @@ public class StudyAgentFacade {
         return agentController.setEngine(isLocal, config);
     }
 
+    public void setWebSearchPermitted(boolean permitted) {
+        agentController.setWebSearchEnabled(permitted);
+    }
+
+    public boolean isWebSearchPermitted() {
+        return agentController.isWebSearchEnabled();
+    }
+
     public IngestionResult ingestFolder(String subjectId, String path) {
         return documentManager.ingestFolder(subjectId, path);
     }
@@ -60,6 +68,10 @@ public class StudyAgentFacade {
 
     public StudySession startStudySession(Quiz quiz) {
         return sessionManager.loadSession(quiz);
+    }
+
+    public StudySession getActiveStudySession() {
+        return sessionManager.getActiveSession();
     }
 
     public boolean submitQuizAnswer(int choiceIndex) {
