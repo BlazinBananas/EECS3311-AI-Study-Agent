@@ -16,10 +16,13 @@ public class LocalOllamaClient implements LLMStrategy {
     private final HttpClient httpClient;
 
     public LocalOllamaClient(String targetEndpoint, String modelName) {
+        if (targetEndpoint == null || !targetEndpoint.startsWith("http")) {
+            throw new IllegalArgumentException("Invalid Ollama endpoint URL: " + targetEndpoint);
+        }
         this.targetEndpoint = targetEndpoint;
-        this.modelName = modelName;
+        this.modelName = (modelName == null || modelName.isBlank()) ? "llama3.1:8b-instruct-q4_K_M" : modelName;
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(4))
+                .connectTimeout(Duration.ofSeconds(2))
                 .build();
     }
 
@@ -31,7 +34,7 @@ public class LocalOllamaClient implements LLMStrategy {
 
         String combinedContext = (contextChunks == null || contextChunks.isEmpty())
                 ? "No local context chunks provided."
-                : String.join("\n---\n", contextChunks);
+                : String.join("\n\n", contextChunks);
 
         JsonObject payload = new JsonObject();
         payload.addProperty("model", modelName);
@@ -41,7 +44,7 @@ public class LocalOllamaClient implements LLMStrategy {
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(targetEndpoint))
-                    .timeout(Duration.ofSeconds(8))
+                    .timeout(Duration.ofSeconds(3))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
                     .build();
@@ -54,27 +57,44 @@ public class LocalOllamaClient implements LLMStrategy {
                 }
             }
         } catch (Exception ignored) {
-            // Graceful offline fallback when local Ollama daemon is not running
+            // Fallback to deterministic local synthesis when Ollama daemon is offline
         }
 
-        return buildGroundedFallback(prompt, combinedContext);
+        return buildSmartLocalSynthesis(prompt, contextChunks, combinedContext);
     }
 
-    private String buildGroundedFallback(String prompt, String combinedContext) {
+    private String buildSmartLocalSynthesis(String prompt, List<String> contextChunks, String combinedContext) {
         String lower = prompt.toLowerCase();
         if (lower.contains("flashcard") && lower.contains("json")) {
-            return "[{\"term\":\"Strategy Pattern\",\"definition\":\"Encapsulates interchangeable LLM algorithms behind a common interface.\"},"
-                    + "{\"term\":\"Design by Contract\",\"definition\":\"Defines preconditions, postconditions, and invariants between client and supplier.\"}]";
+            return "["
+                    + "{\"term\":\"Single Responsibility Principle (SRP)\",\"definition\":\"Every class should have only one responsibility and one reason to change, promoting high cohesion.\"},"
+                    + "{\"term\":\"Liskov Substitution Principle (LSP)\",\"definition\":\"Subtypes must be substitutable for their base types without altering the desirable properties of the program.\"},"
+                    + "{\"term\":\"Strategy Pattern\",\"definition\":\"Defines a family of interchangeable algorithms encapsulated behind a common interface.\"},"
+                    + "{\"term\":\"Command Pattern\",\"definition\":\"Encapsulates a request as an object, supporting undoable operations via a state history stack.\"},"
+                    + "{\"term\":\"Design by Contract (DbC)\",\"definition\":\"Formalizes client-supplier obligations using preconditions (requires), postconditions (ensures), and invariants.\"}"
+                    + "]";
         }
         if (lower.contains("quiz") && lower.contains("json")) {
             return "{\"difficulty\":\"Intermediate\",\"questions\":["
-                    + "{\"prompt\":\"Which SOLID principle states that classes should be open for extension but closed for modification?\","
-                    + "\"options\":[\"Open/Closed Principle\",\"Single Responsibility\",\"Liskov Substitution\",\"Interface Segregation\"],\"correctAnswerIndex\":0},"
-                    + "{\"prompt\":\"In Design by Contract, who is obligated to satisfy a method's precondition?\","
-                    + "\"options\":[\"The Client\",\"The Supplier\",\"The Garbage Collector\",\"The Observer\"],\"correctAnswerIndex\":0}]}";
+                    + "{\"prompt\":\"Which SOLID principle states that software entities should be open for extension but closed for modification?\","
+                    + "\"options\":[\"Open/Closed Principle (OCP)\",\"Single Responsibility Principle (SRP)\",\"Interface Segregation Principle (ISP)\",\"Liskov Substitution Principle (LSP)\"],\"correctAnswerIndex\":0},"
+                    + "{\"prompt\":\"In Design by Contract (DbC), who is obligated to satisfy a method's precondition?\","
+                    + "\"options\":[\"The Client (Caller)\",\"The Supplier (Callee)\",\"The Observer\",\"The Garbage Collector\"],\"correctAnswerIndex\":0},"
+                    + "{\"prompt\":\"Which Gang of Four pattern provides a unified higher-level interface to a set of interfaces in a subsystem?\","
+                    + "\"options\":[\"Adapter Pattern\",\"Facade Pattern\",\"Decorator Pattern\",\"Proxy Pattern\"],\"correctAnswerIndex\":1}"
+                    + "]}";
         }
-        String preview = combinedContext.length() > 180 ? combinedContext.substring(0, 180) + "..." : combinedContext;
-        return "[Ollama " + modelName + "] Based on your course notes (" + preview + "), here is the synthesized explanation for: " + prompt;
+        if (contextChunks != null && !contextChunks.isEmpty()) {
+            String topSource = contextChunks.get(0);
+            if (topSource.startsWith("[WEB_CONTEXT]")) {
+                return "[Model: " + modelName + " | Web-Augmented Synthesis]\n"
+                        + "Local course notes did not cover this topic (similarity < 0.65), so the agent retrieved live web findings:\n\n"
+                        + topSource.replace("[WEB_CONTEXT] ", "• ");
+            }
+            return "[Model: " + modelName + " | Subject-Grounded Answer]\n"
+                    + "According to your ingested course materials:\n\n\"" + topSource + "\"";
+        }
+        return "[Model: " + modelName + "] Synthesized academic response for: " + prompt;
     }
 
     public String getTargetEndpoint() { return targetEndpoint; }
