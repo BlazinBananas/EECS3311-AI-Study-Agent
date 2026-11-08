@@ -1,7 +1,14 @@
 package ai.studyagent.controller;
 
 import ai.studyagent.config.EngineConfig;
-import ai.studyagent.domain.*;
+import ai.studyagent.domain.ChatResponse;
+import ai.studyagent.domain.CodingProblem;
+import ai.studyagent.domain.DocumentChunk;
+import ai.studyagent.domain.Flashcard;
+import ai.studyagent.domain.GradeEvaluation;
+import ai.studyagent.domain.IngestionResult;
+import ai.studyagent.domain.Quiz;
+import ai.studyagent.domain.QuizQuestion;
 import ai.studyagent.observer.AnalyticsDashboard;
 import ai.studyagent.rag.DocumentManager;
 import ai.studyagent.rag.WebSearchTool;
@@ -10,6 +17,8 @@ import ai.studyagent.session.StudySession;
 import ai.studyagent.session.SubmitAnswerCommand;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class StudyAgentFacade {
     private final DocumentManager documentManager;
@@ -31,6 +40,10 @@ public class StudyAgentFacade {
         return agentController.setEngine(isLocal, config);
     }
 
+    public EngineConfig getEngineConfig() {
+        return agentController.getConfig();
+    }
+
     public void setWebSearchPermitted(boolean permitted) {
         agentController.setWebSearchEnabled(permitted);
     }
@@ -43,16 +56,40 @@ public class StudyAgentFacade {
         return documentManager.ingestFolder(subjectId, path);
     }
 
+    public List<String> getSubjectSources(String subjectId) {
+        return documentManager.getSubjectSourceFiles(subjectId);
+    }
+
+    public Map<String, List<DocumentChunk>> getAllIngestedChunks() {
+        return documentManager.getSubjectStore();
+    }
+
+    public void restoreIngestedChunks(String subjectId, List<DocumentChunk> chunks) {
+        documentManager.restoreSubjectChunks(subjectId, chunks);
+    }
+
     public ChatResponse askQuestion(String subjectId, String query) throws Exception {
-        return agentController.processChatRequest(subjectId, query);
+        return agentController.processChatRequest(subjectId, query, null);
+    }
+
+    public ChatResponse askQuestion(String subjectId, String query, Set<String> selectedSources) throws Exception {
+        return agentController.processChatRequest(subjectId, query, selectedSources);
     }
 
     public List<Flashcard> requestFlashcards(String subjectId, int count) throws Exception {
-        return agentController.generateFlashcards(subjectId, count);
+        return agentController.generateFlashcards(subjectId, count, "", null);
+    }
+
+    public List<Flashcard> requestFlashcards(String subjectId, int count, String customTopic, Set<String> selectedSources) throws Exception {
+        return agentController.generateFlashcards(subjectId, count, customTopic, selectedSources);
     }
 
     public Quiz requestQuiz(String subjectId, String difficulty, int count) throws Exception {
-        return agentController.generateQuiz(subjectId, difficulty, count);
+        return agentController.generateQuiz(subjectId, difficulty, count, "", null);
+    }
+
+    public Quiz requestQuiz(String subjectId, String difficulty, int count, String customTopic, Set<String> selectedSources) throws Exception {
+        return agentController.generateQuiz(subjectId, difficulty, count, customTopic, selectedSources);
     }
 
     public CodingProblem generateCodingProblem(String topic) throws Exception {

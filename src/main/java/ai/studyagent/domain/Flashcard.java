@@ -20,8 +20,10 @@ public class Flashcard implements StudyMaterial {
     public String getSubjectId() { return subjectId; }
 
     public String getTerm() { return term; }
+    public void setTerm(String term) { this.term = term; }
 
     public String getDefinition() { return definition; }
+    public void setDefinition(String definition) { this.definition = definition; }
 
     @Override
     public String getSummary() {

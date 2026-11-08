@@ -1,7 +1,14 @@
 package ai.studyagent.controller;
 
 import ai.studyagent.config.EngineConfig;
-import ai.studyagent.domain.*;
+import ai.studyagent.domain.ChatResponse;
+import ai.studyagent.domain.CodingProblem;
+import ai.studyagent.domain.DocumentChunk;
+import ai.studyagent.domain.Flashcard;
+import ai.studyagent.domain.GradeEvaluation;
+import ai.studyagent.domain.Quiz;
+import ai.studyagent.domain.QuizQuestion;
+import ai.studyagent.domain.WebSnippet;
 import ai.studyagent.factory.FlashcardFactory;
 import ai.studyagent.factory.QuizFactory;
 import ai.studyagent.rag.DocumentManager;
@@ -13,6 +20,7 @@ import ai.studyagent.strategy.LocalOllamaClient;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class AgentController {
@@ -51,38 +59,38 @@ public class AgentController {
             }
             return true;
         } catch (Exception e) {
-            // F01 Alternative Flow: revert to previous setting on invalid endpoint/key
             this.config = previousConfig;
             this.activeStrategy = previousStrategy;
             return false;
         }
     }
 
-    public void setWebSearchEnabled(boolean enabled) {
-        this.config.setPermitWebSearch(enabled);
-    }
-
-    public boolean isWebSearchEnabled() {
-        return this.config.isPermitWebSearch();
-    }
+    public EngineConfig getConfig() { return config; }
+    public void setWebSearchEnabled(boolean enabled) { this.config.setPermitWebSearch(enabled); }
+    public boolean isWebSearchEnabled() { return this.config.isPermitWebSearch(); }
 
     public ChatResponse processChatRequest(String subjectId, String query) throws Exception {
+        return processChatRequest(subjectId, query, null);
+    }
+
+    public ChatResponse processChatRequest(String subjectId, String query, Set<String> selectedSources) throws Exception {
         if (query == null || query.isBlank()) {
             throw new IllegalArgumentException("Please enter a valid question before sending.");
         }
-        // F04 Alternative Flow: Empty subject folder check
         if (!documentManager.hasDocuments(subjectId)) {
             throw new IllegalStateException("This subject folder is empty. Please import materials (F02) before chatting.");
         }
+        if (selectedSources != null && selectedSources.isEmpty()) {
+            throw new IllegalStateException("No source files are checked! Please check at least one source file in the left Sources panel.");
+        }
 
-        List<DocumentChunk> chunks = documentManager.retrieveRelevantChunks(subjectId, query, 5);
+        List<DocumentChunk> chunks = documentManager.retrieveRelevantChunks(subjectId, query, 5, selectedSources);
         double maxSimilarity = chunks.stream().mapToDouble(DocumentChunk::getSimilarityScore).max().orElse(0.0);
 
         List<WebSnippet> webCitations = new ArrayList<>();
         List<String> contextStrings = new ArrayList<>();
         boolean usedWeb = false;
 
-        // F03 Agent Decision Contract: trigger WebSearchTool when max(similarity) < 0.65 and permitted
         if (maxSimilarity < 0.65 && config.isPermitWebSearch()) {
             try {
                 webCitations = webSearchTool.searchWeb(query);
@@ -98,8 +106,8 @@ public class AgentController {
             }
         } else if (maxSimilarity < 0.65) {
             return new ChatResponse(
-                    "I do not have this information in your local notes (max similarity "
-                            + String.format("%.2f", maxSimilarity) + " < 0.65), and Permit Web Search (F03) is currently disabled.",
+                    "I do not have this information in your checked notes (max similarity "
+                            + String.format("%.2f", maxSimilarity) + " < 0.65), and Permit Web Search (F03) is disabled.",
                     chunks, Collections.emptyList(), false
             );
         } else {
@@ -112,24 +120,40 @@ public class AgentController {
             }
         }
 
-        String answer = activeStrategy.generateResponse("Answer grounded in context: " + query, contextStrings);
+        String answer = activeStrategy.generateResponse(
+                "Answer the following student question clearly and concisely using the provided context: " + query,
+                contextStrings
+        );
         return new ChatResponse(answer, chunks, webCitations, usedWeb);
     }
 
     public List<Flashcard> generateFlashcards(String subjectId, int count) throws Exception {
+        return generateFlashcards(subjectId, count, "", null);
+    }
+
+    public List<Flashcard> generateFlashcards(String subjectId, int count, String customTopic, Set<String> selectedSources) throws Exception {
         if (!documentManager.hasDocuments(subjectId)) {
             throw new IllegalStateException("Subject folder '" + subjectId + "' is empty. Please import materials (F02) first.");
         }
-        List<DocumentChunk> chunks = documentManager.retrieveRelevantChunks(subjectId, subjectId, 5);
+        if (selectedSources != null && selectedSources.isEmpty()) {
+            throw new IllegalStateException("Please check at least one source file in the Sources panel to generate flashcards.");
+        }
+        String searchKey = (customTopic == null || customTopic.isBlank()) ? subjectId : customTopic;
+        List<DocumentChunk> chunks = documentManager.retrieveRelevantChunks(subjectId, searchKey, 6, selectedSources);
         List<String> context = chunks.stream().map(DocumentChunk::getText).collect(Collectors.toList());
-        String prompt = "Generate " + count + " flashcards as JSON array of {term, definition}.";
+
+        String topicDirective = (customTopic == null || customTopic.isBlank())
+                ? "key concepts from the sources"
+                : "this specific topic focus: " + customTopic;
+        String prompt = "Generate exactly " + count + " flashcards focusing on " + topicDirective + ". "
+                + "Return ONLY a valid JSON array with no markdown or extra text, in this exact format: "
+                + "[{\"term\":\"Term Name\",\"definition\":\"Clear definition\"}]";
 
         String rawResponse = activeStrategy.generateResponse(prompt, context);
         List<Flashcard> parsed;
         try {
             parsed = flashcardFactory.createDeck(subjectId, rawResponse);
         } catch (IllegalArgumentException firstError) {
-            // F05 Alternative Flow: silent single retry on malformed JSON
             String fallbackJson = "[{\"term\":\"Strategy Pattern\",\"definition\":\"Encapsulates interchangeable LLM algorithms behind a common interface.\"},"
                     + "{\"term\":\"Command Pattern\",\"definition\":\"Encapsulates a request as an object with pre-execution state to support undo.\"},"
                     + "{\"term\":\"Observer Pattern\",\"definition\":\"Defines a one-to-many dependency so observers update automatically.\"}]";
@@ -139,18 +163,30 @@ public class AgentController {
     }
 
     public Quiz generateQuiz(String subjectId, String difficulty, int count) throws Exception {
+        return generateQuiz(subjectId, difficulty, count, "", null);
+    }
+
+    public Quiz generateQuiz(String subjectId, String difficulty, int count, String customTopic, Set<String> selectedSources) throws Exception {
         if (!documentManager.hasDocuments(subjectId)) {
             throw new IllegalStateException("Insufficient source material to generate a full quiz. Please ingest more documents.");
         }
-        List<DocumentChunk> chunks = documentManager.retrieveRelevantChunks(subjectId, subjectId, 10);
-        // F06 Alternative Flow: check if local material has enough chunks to support requested question count
+        if (selectedSources != null && selectedSources.isEmpty()) {
+            throw new IllegalStateException("Please check at least one source file in the Sources panel to generate a quiz.");
+        }
+        String searchKey = (customTopic == null || customTopic.isBlank()) ? subjectId : customTopic;
+        List<DocumentChunk> chunks = documentManager.retrieveRelevantChunks(subjectId, searchKey, 10, selectedSources);
         if (count > chunks.size() + 2) {
             throw new IllegalStateException("Insufficient source material to generate a full quiz (" + count
-                    + " questions requested, only " + chunks.size() + " chunks available). Please ingest more documents.");
+                    + " questions requested, only " + chunks.size() + " chunks available in checked sources). Please ingest or select more documents.");
         }
 
         List<String> context = chunks.stream().map(DocumentChunk::getText).collect(Collectors.toList());
-        String prompt = "Generate a " + difficulty + " quiz with " + count + " questions in JSON.";
+        String topicDirective = (customTopic == null || customTopic.isBlank())
+                ? "the provided sources"
+                : "this specific topic focus: " + customTopic;
+        String prompt = "Generate a " + difficulty + " multiple-choice quiz with " + count + " questions based on " + topicDirective + ". "
+                + "Return ONLY a valid JSON object with no markdown or extra text, in this exact format: "
+                + "{\"difficulty\":\"" + difficulty + "\",\"questions\":[{\"prompt\":\"Question text?\",\"options\":[\"Opt A\",\"Opt B\",\"Opt C\",\"Opt D\"],\"correctAnswerIndex\":0}]}";
 
         String rawResponse = activeStrategy.generateResponse(prompt, context);
         Quiz quiz;
@@ -174,20 +210,19 @@ public class AgentController {
             throw new IllegalArgumentException("Please enter a valid Computer Science topic.");
         }
         String lower = topic.toLowerCase();
-        // F07 Alternative Flow: polite refusal for non-academic or unsafe prompts
         if (lower.contains("bake") || lower.contains("cake") || lower.contains("pizza")
                 || lower.contains("hack") || lower.contains("exploit") || lower.contains("movie")) {
             throw new IllegalArgumentException("Refusal: The requested topic ('" + topic
                     + "') is unrelated to Computer Science coursework or violates academic safety guidelines.");
         }
 
-        String aiOutput = activeStrategy.generateResponse("Generate Java coding problem for: " + topic, Collections.emptyList());
+        String aiOutput = activeStrategy.generateResponse(
+                "Create a concise Java programming practice problem statement for the topic: " + topic,
+                Collections.emptyList()
+        );
         return new CodingProblem(
                 "CS Practice Problem: " + topic,
-                "Design and implement a modular Java class hierarchy demonstrating " + topic + ".\n"
-                        + "• Ensure all preconditions are validated (Design by Contract).\n"
-                        + "• Keep methods cohesive and adhere to SOLID principles.\n"
-                        + "• Agent Context Note: " + aiOutput,
+                aiOutput,
                 "public class Solution {\n"
                         + "    // TODO: Implement " + topic + "\n"
                         + "    public String execute(String input) {\n"
@@ -197,18 +232,18 @@ public class AgentController {
                         + "        return \"Processed: \" + input;\n"
                         + "    }\n"
                         + "}",
-                "Adhere to SOLID & DbC principles; Time Complexity: O(n), Space Complexity: O(1)."
+                "Adhere to SOLID & DbC principles; validate all input preconditions."
         );
     }
 
     public GradeEvaluation evaluateSolution(CodingProblem problem, String userSolution) throws Exception {
         String trimmed = userSolution == null ? "" : userSolution.trim();
-        // F08 Alternative Flow: reject empty or gibberish submissions deterministically
         if (trimmed.length() < 10 || (!trimmed.contains(" ") && !trimmed.contains("{") && !trimmed.contains(";"))) {
             throw new IllegalArgumentException("Please enter a valid answer before submitting (empty or gibberish input detected).");
         }
 
-        String prompt = "Grade solution for " + problem.getProblemTitle() + ": " + trimmed;
+        String prompt = "Evaluate this student Java solution for the problem '" + problem.getProblemTitle()
+                + "'. Provide constructive feedback and 1-2 hints:\n\n" + trimmed;
         String aiOutput = activeStrategy.generateResponse(prompt, Collections.singletonList(problem.getDescription()));
 
         int score = 70;
@@ -229,14 +264,10 @@ public class AgentController {
             hints.add("Replace the // TODO placeholder comment with your complete method implementation.");
         }
         if (hints.isEmpty()) {
-            hints.add("Great structure! Consider adding JUnit 5 Boundary-Value Analysis tests for edge cases.");
+            hints.add("Solid structure! Consider writing JUnit 5 Boundary-Value Analysis tests for edge cases.");
         }
 
-        String qualitativeFeedback = String.format(
-                "Semantic & Logic Analysis: Your solution for '%s' compiles structurally and achieves %d/100. (%s)",
-                problem.getProblemTitle(), score, aiOutput);
-
-        return new GradeEvaluation(Math.min(100, score), qualitativeFeedback, hints);
+        return new GradeEvaluation(Math.min(100, score), aiOutput, hints);
     }
 
     public LLMStrategy getActiveStrategy() { return activeStrategy; }

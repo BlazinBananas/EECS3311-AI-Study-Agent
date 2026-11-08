@@ -1,6 +1,10 @@
 package ai.studyagent.rag;
 
 import ai.studyagent.domain.WebSnippet;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -17,40 +21,82 @@ public class WebSearchTool {
 
     public WebSearchTool() {
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
+                .connectTimeout(Duration.ofSeconds(8))
+                .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
     }
 
     public List<WebSnippet> searchWeb(String query) throws Exception {
-        String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8);
-        String url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + encoded.replace("+", "_");
+        if (query == null || query.isBlank()) {
+            throw new IllegalArgumentException("Search query cannot be empty.");
+        }
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
+        List<WebSnippet> snippets = new ArrayList<>();
+        String encoded = URLEncoder.encode(query.trim(), StandardCharsets.UTF_8);
+
+        // 1. Live Wikipedia Full-Text Search API (returns real article snippets for any question)
+        String wikiSearchUrl = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch="
+                + encoded + "&utf8=1&format=json&srlimit=3";
+
+        HttpRequest wikiReq = HttpRequest.newBuilder()
+                .uri(URI.create(wikiSearchUrl))
+                .timeout(Duration.ofSeconds(8))
+                .header("User-Agent", "EECS3311-StudyAgent/1.0 (Academic Course Project)")
                 .header("Accept", "application/json")
                 .GET()
                 .build();
 
-        List<WebSnippet> snippets = new ArrayList<>();
-        try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200 && response.body().contains("\"extract\"")) {
-                String body = response.body();
-                snippets.add(new WebSnippet(
-                        "Wikipedia Summary: " + query,
-                        "https://en.wikipedia.org/wiki/" + encoded.replace("+", "_"),
-                        body.length() > 350 ? body.substring(0, 350) + "..." : body
-                ));
-            } else {
-                snippets.add(new WebSnippet(
-                        "CS Reference Result: " + query,
-                        "https://duckduckgo.com/?q=" + encoded,
-                        "Live web augmentation result retrieved for query: " + query
-                ));
+        HttpResponse<String> wikiResp = httpClient.send(wikiReq, HttpResponse.BodyHandlers.ofString());
+        if (wikiResp.statusCode() == 200) {
+            JsonObject root = JsonParser.parseString(wikiResp.body()).getAsJsonObject();
+            if (root.has("query") && root.getAsJsonObject("query").has("search")) {
+                JsonArray results = root.getAsJsonObject("query").getAsJsonArray("search");
+                for (JsonElement elem : results) {
+                    JsonObject item = elem.getAsJsonObject();
+                    String title = item.get("title").getAsString();
+                    String rawSnippet = item.get("snippet").getAsString();
+                    String cleanSnippet = stripHtmlTags(rawSnippet);
+                    String articleUrl = "https://en.wikipedia.org/wiki/"
+                            + URLEncoder.encode(title.replace(" ", "_"), StandardCharsets.UTF_8);
+                    snippets.add(new WebSnippet(title, articleUrl, cleanSnippet));
+                }
             }
-        } catch (Exception e) {
-            throw new Exception("Web search failed or network unreachable: " + e.getMessage(), e);
+        }
+
+        // 2. Secondary Check: DuckDuckGo Instant Answer API if Wikipedia returned nothing
+        if (snippets.isEmpty()) {
+            String ddgUrl = "https://api.duckduckgo.com/?q=" + encoded + "&format=json&no_html=1&skip_disambig=1";
+            HttpRequest ddgReq = HttpRequest.newBuilder()
+                    .uri(URI.create(ddgUrl))
+                    .timeout(Duration.ofSeconds(8))
+                    .header("User-Agent", "EECS3311-StudyAgent/1.0")
+                    .GET()
+                    .build();
+            HttpResponse<String> ddgResp = httpClient.send(ddgReq, HttpResponse.BodyHandlers.ofString());
+            if (ddgResp.statusCode() == 200) {
+                JsonObject ddgRoot = JsonParser.parseString(ddgResp.body()).getAsJsonObject();
+                if (ddgRoot.has("AbstractText") && !ddgRoot.get("AbstractText").getAsString().isBlank()) {
+                    snippets.add(new WebSnippet(
+                            ddgRoot.get("Heading").getAsString(),
+                            ddgRoot.get("AbstractURL").getAsString(),
+                            ddgRoot.get("AbstractText").getAsString()
+                    ));
+                }
+            }
+        }
+
+        if (snippets.isEmpty()) {
+            throw new IllegalStateException("No live web snippets matched query: " + query);
         }
         return snippets;
+    }
+
+    private String stripHtmlTags(String html) {
+        if (html == null) return "";
+        return html.replaceAll("<[^>]*>", "")
+                .replace("&quot;", "\"")
+                .replace("&#039;", "'")
+                .replace("&amp;", "&")
+                .trim();
     }
 }

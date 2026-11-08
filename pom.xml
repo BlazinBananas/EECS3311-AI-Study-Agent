@@ -28,7 +28,7 @@
     </build>
 
     <dependencies>
-        <!-- Gson for parsing LLM JSON responses into Flashcards and Quizzes -->
+        <!-- Gson for parsing LLM JSON responses and Web Search API JSON -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
@@ -40,7 +40,13 @@
             <artifactId>pdfbox</artifactId>
             <version>2.0.30</version>
         </dependency>
-        <!-- JUnit 5 Aggregator (API + Engine) for unit verification -->
+        <!-- FlatLaf for modern flat UI and native Light/Dark Mode -->
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>3.7.2</version>
+        </dependency>
+        <!-- JUnit 5 Aggregator for unit verification -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
