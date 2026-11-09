@@ -1173,87 +1173,143 @@ public class StudyWorkspacePanel extends JPanel {
     }
 
     private JPanel buildSessionStudioSubPanel() {
-        JPanel p = new JPanel(new BorderLayout(6, 6));
-        p.setBorder(BorderFactory.createTitledBorder("F09 & F10: Guided Quiz Session & Analytics"));
+        JPanel p = new JPanel(new BorderLayout(8, 8));
+        p.setBorder(BorderFactory.createTitledBorder("F09 Timed Exam Builder & F10 Analytics Hub"));
 
-        // Equal-width grid ensures '⤢ Maximize' never gets pushed off-screen
-        JPanel top = new JPanel(new GridLayout(1, 4, 4, 0));
-        JButton submitBtn = new JButton("Submit");
-        JButton undoBtn = new JButton("Undo (F09)");
-        JButton maximizeQuizBtn = new JButton("⤢ Maximize");
-        sessionTimerLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        // Top Card: Cumulative Exam Combiner & Dynamic Time Limit Calculator (F09)
+        JPanel examBuilderCard = new JPanel(new GridLayout(4, 1, 4, 6));
+        examBuilderCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1, true),
+                new EmptyBorder(8, 10, 8, 10)
+        ));
 
-        top.add(submitBtn);
-        top.add(undoBtn);
-        top.add(maximizeQuizBtn);
-        top.add(sessionTimerLabel);
+        JLabel builderTitle = new JLabel("🎓 Cumulative Exam Builder (Combines Saved Quizzes)");
+        builderTitle.setFont(new Font("SansSerif", Font.BOLD, 13));
 
-        maximizeQuizBtn.addActionListener(e -> {
+        JPanel pacingRow = new JPanel(new BorderLayout(6, 0));
+        pacingRow.add(new JLabel("Time Limit Rule:"), BorderLayout.WEST);
+        JComboBox<String> timeRuleBox = new JComboBox<>(new String[]{
+                "Standard Exam (90s / question)",
+                "Relaxed Review (120s / question)",
+                "Speed Drill (45s / question)",
+                "Blitz Mode (30s / question)"
+        });
+        pacingRow.add(timeRuleBox, BorderLayout.CENTER);
+
+        JPanel actionRow1 = new JPanel(new GridLayout(1, 2, 6, 0));
+        JButton combineAllBtn = new JButton("⚡ Start Combined Timed Exam");
+        combineAllBtn.setBackground(new Color(37, 99, 235));
+        combineAllBtn.setForeground(Color.WHITE);
+        combineAllBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
+        combineAllBtn.setToolTipText("Merges all saved Quizzes in this notebook into one timed exam!");
+
+        JButton runActiveBtn = new JButton("⤢ Timed Selected Quiz");
+        runActiveBtn.setToolTipText("Runs the currently selected Quiz with a calculated countdown timer");
+        actionRow1.add(combineAllBtn);
+        actionRow1.add(runActiveBtn);
+
+        JPanel actionRow2 = new JPanel(new GridLayout(1, 2, 6, 0));
+        JButton undoLastBtn = new JButton("↶ Undo Last Answer (F09)");
+        JButton refreshStatsBtn = new JButton("↻ Refresh Analytics (F10)");
+        actionRow2.add(undoLastBtn);
+        actionRow2.add(refreshStatsBtn);
+
+        examBuilderCard.add(builderTitle);
+        examBuilderCard.add(pacingRow);
+        examBuilderCard.add(actionRow1);
+        examBuilderCard.add(actionRow2);
+
+        java.util.function.IntSupplier getSecondsPerQuestion = () -> switch (timeRuleBox.getSelectedIndex()) {
+            case 0 -> 90;
+            case 1 -> 120;
+            case 2 -> 45;
+            default -> 30;
+        };
+
+        // Combine ALL saved quizzes in the notebook into one cumulative exam!
+        combineAllBtn.addActionListener(e -> {
             NotebookState nb = currentNotebook();
-            if (nb.activeQuiz == null) {
-                JOptionPane.showMessageDialog(this, "Click '📝 + Quiz (F06)' above or select a saved Quiz first.");
+            List<QuizQuestion> mergedQuestions = new ArrayList<>();
+            int quizCount = 0;
+            for (StudioArtifact item : nb.studioItems) {
+                if (item.type == ArtifactType.QUIZ && item.quiz != null) {
+                    mergedQuestions.addAll(item.quiz.getQuestions());
+                    quizCount++;
+                }
+            }
+            if (mergedQuestions.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "No saved quizzes found in this notebook yet!\nClick '📝 + Quiz (F06)' above to generate one or more quizzes first.",
+                        "F09 Exam Builder", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
+            int secsPerQ = getSecondsPerQuestion.getAsInt();
+            int totalExamSeconds = mergedQuestions.size() * secsPerQ;
+            Quiz combinedExam = new Quiz(
+                    "exam-" + System.currentTimeMillis(),
+                    activeSubjectId,
+                    "Cumulative (" + quizCount + " quizzes)",
+                    mergedQuestions
+            );
+            nb.activeQuiz = combinedExam;
+            nb.activeQuizTitle = activeSubjectId + " Cumulative Exam (" + mergedQuestions.size() + " Qs)";
+            nb.activeQuizSubtitle = String.format("Merged %d quizzes • Time Limit: %02d:%02d (%ds/Q)",
+                    quizCount, totalExamSeconds / 60, totalExamSeconds % 60, secsPerQ);
+
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
             MaximizedStudyDialog.showQuizModal(
                     parentFrame, nb.activeQuizTitle, nb.activeQuizSubtitle,
+                    combinedExam, facade, () -> {
+                        onStateChanged.run();
+                        refreshSessionView();
+                        refreshAnalyticsDisplay();
+                    }, totalExamSeconds
+            );
+        });
+
+        runActiveBtn.addActionListener(e -> {
+            NotebookState nb = currentNotebook();
+            if (nb.activeQuiz == null || nb.activeQuiz.getQuestions().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Select a saved Quiz in the library above first, or click '⚡ Start Combined Timed Exam'.");
+                return;
+            }
+            int secsPerQ = getSecondsPerQuestion.getAsInt();
+            int totalExamSeconds = nb.activeQuiz.getQuestions().size() * secsPerQ;
+            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            MaximizedStudyDialog.showQuizModal(
+                    parentFrame, nb.activeQuizTitle,
+                    nb.activeQuizSubtitle + String.format(" • Limit: %02d:%02d", totalExamSeconds / 60, totalExamSeconds % 60),
                     nb.activeQuiz, facade, () -> {
                         onStateChanged.run();
                         refreshSessionView();
                         refreshAnalyticsDisplay();
-                    }
+                    }, totalExamSeconds
             );
         });
 
-        submitBtn.addActionListener(e -> {
-            StudySession s = facade.getActiveStudySession();
-            if (s == null || s.isCompleted()) {
-                JOptionPane.showMessageDialog(this, "Click '📝 + Quiz (F06)' above or click a saved Quiz to start!");
-                return;
-            }
-            int sel = 0;
-            for (int i = 0; i < optionButtons.length; i++) {
-                if (optionButtons[i].isSelected()) sel = i;
-            }
-            facade.submitQuizAnswer(sel);
-            refreshSessionView();
-            refreshAnalyticsDisplay();
-        });
-
-        undoBtn.addActionListener(e -> {
+        undoLastBtn.addActionListener(e -> {
             if (facade.undoLastSessionAnswer()) {
                 refreshSessionView();
+                JOptionPane.showMessageDialog(this, "Reverted last quiz answer via SubmitAnswerCommand.undo()!");
             } else {
                 JOptionPane.showMessageDialog(this, "Command stack is empty — nothing to undo.");
             }
         });
 
-        JPanel qPanel = new JPanel(new BorderLayout(4, 4));
-        activeQuestionArea.setEditable(false);
-        activeQuestionArea.setLineWrap(true);
-        activeQuestionArea.setWrapStyleWord(true);
-        activeQuestionArea.setText("Click '📝 + Quiz (F06)' above to generate a quiz, or click '⤢ Maximize'.");
-        qPanel.add(new JScrollPane(activeQuestionArea), BorderLayout.CENTER);
+        refreshStatsBtn.addActionListener(e -> refreshAnalyticsDisplay());
 
-        JPanel radioGrid = new JPanel(new GridLayout(4, 1, 2, 2));
-        for (int i = 0; i < 4; i++) {
-            optionButtons[i] = new JRadioButton("Option " + (char) ('A' + i));
-            if (i == 0) optionButtons[i].setSelected(true);
-            optionGroup.add(optionButtons[i]);
-            radioGrid.add(optionButtons[i]);
-        }
-        qPanel.add(radioGrid, BorderLayout.SOUTH);
-
-        JPanel statsPanel = new JPanel(new GridLayout(2, 1, 4, 4));
+        // Bottom Card: F10 Real-Time Progress Analytics & Visual Mastery Bar
+        JPanel statsPanel = new JPanel(new BorderLayout(6, 6));
+        statsPanel.setBorder(BorderFactory.createTitledBorder("F10: Real-Time Subject Mastery & Analytics (Observer Pattern)"));
         analyticsTextArea.setEditable(false);
-        statsPanel.add(new JScrollPane(analyticsTextArea));
-        statsPanel.add(chartPanel);
+        analyticsTextArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        chartPanel.setPreferredSize(new Dimension(300, 65));
 
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, qPanel, statsPanel);
-        split.setDividerLocation(180);
+        statsPanel.add(new JScrollPane(analyticsTextArea), BorderLayout.CENTER);
+        statsPanel.add(chartPanel, BorderLayout.SOUTH);
 
-        p.add(top, BorderLayout.NORTH);
-        p.add(split, BorderLayout.CENTER);
+        p.add(examBuilderCard, BorderLayout.NORTH);
+        p.add(statsPanel, BorderLayout.CENTER);
         p.add(sessionProgressLabel, BorderLayout.SOUTH);
         return p;
     }
@@ -1347,23 +1403,15 @@ public class StudyWorkspacePanel extends JPanel {
 
     private void refreshSessionView() {
         StudySession s = facade.getActiveStudySession();
-        if (s == null) return;
-        sessionProgressLabel.setText(String.format("Question %d/%d | Score: %d | Done: %s",
-                s.getCurrentQuestionIndex(), s.getTotalQuestions(), s.getCurrentScore(), s.isCompleted()));
-
-        if (s.isCompleted()) {
-            if (pomodoroTimer != null) pomodoroTimer.stop();
-            activeQuestionArea.setText("🎉 Session Complete! Score: " + s.getCurrentScore() + "/" + s.getTotalQuestions()
-                    + "\n(Click 'Undo (F09)' to revert last answer, or select another Quiz)");
+        if (s == null) {
+            sessionProgressLabel.setText("Session: Idle");
             return;
         }
-        QuizQuestion q = s.getCurrentQuestion();
-        if (q != null) {
-            activeQuestionArea.setText("Q" + (s.getCurrentQuestionIndex() + 1) + ": " + q.getPrompt());
-            List<String> opts = q.getOptions();
-            for (int i = 0; i < optionButtons.length; i++) {
-                optionButtons[i].setText(i < opts.size() ? "(" + (char) ('A' + i) + ") " + opts.get(i) : "-");
-            }
+        sessionProgressLabel.setText(String.format("Active Session: Question %d/%d | Score: %d | Completed: %s",
+                s.getCurrentQuestionIndex(), s.getTotalQuestions(), s.getCurrentScore(), s.isCompleted()));
+
+        if (s.isCompleted() && pomodoroTimer != null) {
+            pomodoroTimer.stop();
         }
     }
 

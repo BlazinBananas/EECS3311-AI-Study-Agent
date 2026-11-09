@@ -463,24 +463,62 @@ public class MaximizedStudyDialog {
             StudyAgentFacade facade,
             Runnable onSessionUpdated
     ) {
+        showQuizModal(parent, quizTitle, subtitleMeta, quiz, facade, onSessionUpdated, 0);
+    }
+    
+    public static void showQuizModal(
+            JFrame parent,
+            String quizTitle,
+            String subtitleMeta,
+            Quiz quiz,
+            StudyAgentFacade facade,
+            Runnable onSessionUpdated,
+            int examCountdownSeconds
+    ) {
         if (quiz == null || quiz.getQuestions().isEmpty()) return;
 
-        JDialog dialog = new JDialog(parent, "Interactive Quiz Runner — " + quizTitle, true);
+        JDialog dialog = new JDialog(parent, "Interactive Quiz & Exam Runner — " + quizTitle, true);
         dialog.setSize(1140, 740);
         dialog.setLocationRelativeTo(parent);
 
         facade.startStudySession(quiz);
 
-        final int[] elapsedSeconds = {0};
-        JLabel stopwatchLabel = new JLabel("");
-        stopwatchLabel.setForeground(new Color(148, 163, 184));
-        stopwatchLabel.setFont(new Font("Monospaced", Font.BOLD, 13));
-        stopwatchLabel.setVisible(false);
+        final int[] timerSeconds = {examCountdownSeconds > 0 ? examCountdownSeconds : 0};
+        final boolean isCountdownExam = examCountdownSeconds > 0;
 
-        Timer stopwatch = new Timer(1000, e -> {
-            elapsedSeconds[0]++;
-            stopwatchLabel.setText(String.format("⏱ %02d:%02d", elapsedSeconds[0] / 60, elapsedSeconds[0] % 60));
+        JLabel stopwatchLabel = new JLabel(isCountdownExam
+                ? String.format("⏳ Exam Time Remaining: %02d:%02d", timerSeconds[0] / 60, timerSeconds[0] % 60)
+                : "");
+        stopwatchLabel.setForeground(isCountdownExam ? new Color(248, 113, 113) : new Color(148, 163, 184));
+        stopwatchLabel.setFont(new Font("Monospaced", Font.BOLD, 14));
+        stopwatchLabel.setVisible(isCountdownExam);
+
+        Timer stopwatch = new Timer(1000, null);
+        stopwatch.addActionListener(e -> {
+            if (isCountdownExam) {
+                if (timerSeconds[0] > 0) {
+                    timerSeconds[0]--;
+                    stopwatchLabel.setText(String.format("⏳ Exam Time Remaining: %02d:%02d", timerSeconds[0] / 60, timerSeconds[0] % 60));
+                } else {
+                    stopwatch.stop();
+                    JOptionPane.showMessageDialog(dialog,
+                            "⏳ Exam time limit reached! Submitting remaining questions.",
+                            "Time Expired", JOptionPane.WARNING_MESSAGE);
+                    StudySession s = facade.getActiveStudySession();
+                    while (s != null && !s.isCompleted()) {
+                        facade.submitQuizAnswer(0);
+                    }
+                    onSessionUpdated.run();
+                    dialog.dispose();
+                }
+            } else {
+                timerSeconds[0]++;
+                stopwatchLabel.setText(String.format("⏱ %02d:%02d", timerSeconds[0] / 60, timerSeconds[0] % 60));
+            }
         });
+        if (isCountdownExam) {
+            stopwatch.start();
+        }
 
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(new Color(15, 23, 42));
@@ -563,25 +601,37 @@ public class MaximizedStudyDialog {
         feedbackBanner.setForeground(new Color(167, 243, 208));
         feedbackBanner.setFont(new Font("SansSerif", Font.BOLD, 13));
 
+       JButton nextBtn = new JButton("Next Question →");
+
         Runnable renderQuizState = () -> {
             StudySession s = facade.getActiveStudySession();
             if (s == null) return;
             if (s.isCompleted()) {
                 qCountLabel.setText("Quiz Completed");
-                promptArea.setText(String.format("🎉 Session Completed! Final Score: %d / %d (%.1f%%)\n"
+                promptArea.setText(String.format("🎉 Session Completed! Final Score: %d / %d (%.1f%%)\n\n"
                                 + "Your F10 Progress Analytics Dashboard has been automatically updated via Observer Pattern.",
                         s.getCurrentScore(), s.getTotalQuestions(),
                         (s.getCurrentScore() * 100.0) / Math.max(1, s.getTotalQuestions())));
-                for (JButton b : optionCards) b.setVisible(false);
-                feedbackBanner.setText("Click 'Undo (F09)' below to revert your last answer, or close this window.");
+                for (JButton b : optionCards) {
+                    b.setVisible(false);
+                }
+                nextBtn.setEnabled(false);
+                feedbackBanner.setForeground(new Color(167, 243, 208));
+                feedbackBanner.setText("Click '↶ Undo (F09)' below to revert your last answer, or close this window.");
+                quizCenterPanel.revalidate();
+                quizCenterPanel.repaint();
                 return;
             }
+
             QuizQuestion q = s.getCurrentQuestion();
             if (q == null) return;
-            qCountLabel.setText("Question " + (s.getCurrentQuestionIndex() + 1) + " of " + s.getTotalQuestions());
+            nextBtn.setEnabled(true);
+            qCountLabel.setText("Question " + (s.getCurrentQuestionIndex() + 1) + " of " + s.getTotalQuestions()
+                    + "   (Current Score: " + s.getCurrentScore() + ")");
             promptArea.setText(q.getPrompt());
             selectedOption[0] = -1;
-            feedbackBanner.setText(" ");
+            feedbackBanner.setText("Select an option below, then click 'Next Question →'.");
+            feedbackBanner.setForeground(new Color(148, 163, 184));
 
             List<String> opts = q.getOptions();
             for (int i = 0; i < 4; i++) {
@@ -594,6 +644,8 @@ public class MaximizedStudyDialog {
                     optionCards[i].setVisible(false);
                 }
             }
+            quizCenterPanel.revalidate();
+            quizCenterPanel.repaint();
         };
 
         for (int i = 0; i < 4; i++) {
@@ -627,10 +679,10 @@ public class MaximizedStudyDialog {
                 }
                 if (optIdx == currentQ.getCorrectAnswerIndex()) {
                     feedbackBanner.setForeground(new Color(74, 222, 128));
-                    feedbackBanner.setText("✓ Correct! Click 'Next Question' to record your answer.");
+                    feedbackBanner.setText("✓ Correct! Click 'Next Question →' to record your answer.");
                 } else {
                     feedbackBanner.setForeground(new Color(248, 113, 113));
-                    feedbackBanner.setText("✕ Incorrect. Correct option is " + (char) ('A' + currentQ.getCorrectAnswerIndex()) + ". Click 'Next Question' to continue.");
+                    feedbackBanner.setText("✕ Incorrect. Correct option is " + (char) ('A' + currentQ.getCorrectAnswerIndex()) + ". Click 'Next Question →' to continue.");
                 }
             });
             optionCards[i] = cardBtn;
@@ -662,14 +714,13 @@ public class MaximizedStudyDialog {
         JButton undoBtn = createPillButton("↶ Undo (F09)", new Color(226, 232, 240));
         undoBtn.addActionListener(e -> {
             if (facade.undoLastSessionAnswer()) {
-                onSessionUpdated.run();
                 renderQuizState.run();
+                onSessionUpdated.run();
             } else {
                 JOptionPane.showMessageDialog(dialog, "Command stack is empty — nothing to undo.");
             }
         });
 
-        JButton nextBtn = new JButton("Next Question →");
         nextBtn.setFocusPainted(false);
         nextBtn.setBackground(new Color(37, 99, 235));
         nextBtn.setForeground(Color.WHITE);
@@ -679,10 +730,13 @@ public class MaximizedStudyDialog {
         nextBtn.addActionListener(e -> {
             StudySession s = facade.getActiveStudySession();
             if (s == null || s.isCompleted()) return;
-            int choiceToSubmit = selectedOption[0] >= 0 ? selectedOption[0] : 0;
-            facade.submitQuizAnswer(choiceToSubmit);
-            onSessionUpdated.run();
+            if (selectedOption[0] < 0) {
+                JOptionPane.showMessageDialog(dialog, "Please select an option (A, B, C, or D) first!");
+                return;
+            }
+            facade.submitQuizAnswer(selectedOption[0]);
             renderQuizState.run();
+            onSessionUpdated.run();
         });
 
         rightBottomBtns.add(undoBtn);
@@ -776,7 +830,7 @@ public class MaximizedStudyDialog {
                 stopwatch.stop();
                 stopwatchLabel.setVisible(false);
             } else {
-                elapsedSeconds[0] = 0;
+                timerSeconds[0] = 0;
                 stopwatchLabel.setText("⏱ 00:00");
                 stopwatchLabel.setVisible(true);
                 stopwatch.start();

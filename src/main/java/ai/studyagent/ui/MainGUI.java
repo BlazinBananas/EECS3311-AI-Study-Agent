@@ -52,6 +52,7 @@ public class MainGUI extends JFrame {
     private CourseDashboardPanel courseDashboardPanel;
     private StudyWorkspacePanel studyWorkspacePanel;
     private ScheduleCalendarPanel scheduleCalendarPanel;
+    private PomodoroPanel pomodoroPanel;
 
     public MainGUI(StudyAgentFacade facade) {
         super("StudyAgent Workbench — EECS 3311 AI Study & Learning Agent");
@@ -83,6 +84,7 @@ public class MainGUI extends JFrame {
             cardLayout.show(contentArea, "WORKSPACE");
         });
         this.scheduleCalendarPanel = new ScheduleCalendarPanel();
+        this.pomodoroPanel = new PomodoroPanel();
 
         // Load saved workspace from disk before attaching change listeners
         loadWorkspaceFromDisk();
@@ -95,6 +97,8 @@ public class MainGUI extends JFrame {
         contentArea.add(courseDashboardPanel, "COURSES");
         contentArea.add(studyWorkspacePanel, "WORKSPACE");
         contentArea.add(scheduleCalendarPanel, "SCHEDULE");
+        contentArea.add(pomodoroPanel, "POMODORO");
+        cardLayout.show(contentArea, "COURSES");
 
         add(buildNavigationHeader(), BorderLayout.NORTH);
         add(contentArea, BorderLayout.CENTER);
@@ -155,6 +159,7 @@ public class MainGUI extends JFrame {
         JButton coursesBtn = new JButton("My notebooks");
         JButton workspaceBtn = new JButton("Active Notebook Studio");
         JButton scheduleBtn = new JButton("Study Schedule");
+        JButton pomodoroBtn = new JButton("⏱ Pomodoro");
 
         coursesBtn.addActionListener(e -> {
             courseDashboardPanel.refreshGrid("");
@@ -162,10 +167,12 @@ public class MainGUI extends JFrame {
         });
         workspaceBtn.addActionListener(e -> cardLayout.show(contentArea, "WORKSPACE"));
         scheduleBtn.addActionListener(e -> cardLayout.show(contentArea, "SCHEDULE"));
+        pomodoroBtn.addActionListener(e -> cardLayout.show(contentArea, "POMODORO"));
 
         left.add(coursesBtn);
         left.add(workspaceBtn);
         left.add(scheduleBtn);
+        left.add(pomodoroBtn);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         JButton themeBtn = new JButton("☀ Light Mode");
