@@ -1,15 +1,15 @@
 package ai.studyagent.ui;
 
 import ai.studyagent.controller.StudyAgentFacade;
+import ai.studyagent.domain.CodingProblem;
 import ai.studyagent.domain.Flashcard;
+import ai.studyagent.domain.GradeEvaluation;
 import ai.studyagent.domain.Quiz;
 import ai.studyagent.domain.QuizQuestion;
 import ai.studyagent.session.StudySession;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -20,41 +20,43 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
 import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
-import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
-import java.awt.Point;
-import java.awt.RadialGradientPaint;
 import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.RoundRectangle2D;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class MaximizedStudyDialog {
 
     // =========================================================================
-    // 1. MAXIMIZED FLASHCARD FOCUS VIEW (Matches image_0341e5.png)
+    // 1. MAXIMIZED FLASHCARD FOCUS VIEW (With Bounded Per-Card Verdict Map)
     // =========================================================================
     public static void showFlashcardsModal(
             JFrame parent,
@@ -66,18 +68,18 @@ public class MaximizedStudyDialog {
     ) {
         if (deck == null || deck.isEmpty()) return;
 
-        JDialog dialog = new JDialog(parent, deckTitle, true);
-        dialog.setSize(1180, 760);
+        JDialog dialog = new JDialog(parent, "Flashcard Focus Studio — " + deckTitle, true);
+        dialog.setSize(1140, 740);
         dialog.setLocationRelativeTo(parent);
 
         final int[] index = {0};
         final boolean[] showingAnswer = {false};
-        final int[] missedCount = {0};
-        final int[] gotItCount = {0};
+        // Map<CardIndex, Boolean> guarantees missed + gotIt never exceeds deck.size()!
+        final Map<Integer, Boolean> cardVerdictMap = new HashMap<>();
         final int[] elapsedSeconds = {0};
 
         JLabel stopwatchLabel = new JLabel("");
-        stopwatchLabel.setForeground(new Color(161, 161, 170));
+        stopwatchLabel.setForeground(new Color(148, 163, 184));
         stopwatchLabel.setFont(new Font("Monospaced", Font.BOLD, 13));
         stopwatchLabel.setVisible(false);
 
@@ -86,7 +88,6 @@ public class MaximizedStudyDialog {
             stopwatchLabel.setText(String.format("⏱ %02d:%02d", elapsedSeconds[0] / 60, elapsedSeconds[0] % 60));
         });
 
-        // Ambient Glowing Dark Canvas
         JPanel root = new JPanel(new BorderLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
@@ -94,34 +95,18 @@ public class MaximizedStudyDialog {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 int w = getWidth(), h = getHeight();
-                g2.setColor(new Color(24, 25, 28));
-                g2.fillRect(0, 0, w, h);
-
-                // Left Indigo/Blue Radial Aura
-                RadialGradientPaint leftGlow = new RadialGradientPaint(
-                        new Point(w / 2 - 110, h / 2),
-                        320f,
-                        new float[]{0f, 1f},
-                        new Color[]{new Color(59, 130, 246, 55), new Color(24, 25, 28, 0)}
+                GradientPaint bgGradient = new GradientPaint(
+                        0, 0, new Color(15, 23, 42),
+                        w, h, new Color(23, 37, 84)
                 );
-                g2.setPaint(leftGlow);
-                g2.fillRect(0, 0, w, h);
-
-                // Right Emerald Green Radial Aura
-                RadialGradientPaint rightGlow = new RadialGradientPaint(
-                        new Point(w / 2 + 120, h / 2),
-                        320f,
-                        new float[]{0f, 1f},
-                        new Color[]{new Color(16, 185, 129, 55), new Color(24, 25, 28, 0)}
-                );
-                g2.setPaint(rightGlow);
+                g2.setPaint(bgGradient);
                 g2.fillRect(0, 0, w, h);
                 g2.dispose();
             }
         };
         root.setBorder(new EmptyBorder(18, 28, 24, 28));
 
-        // Top Header Bar
+        // Top Bar
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setOpaque(false);
 
@@ -131,25 +116,24 @@ public class MaximizedStudyDialog {
         titleLbl.setForeground(Color.WHITE);
         titleLbl.setFont(new Font("SansSerif", Font.BOLD, 18));
         JLabel sourcePill = new JLabel("  " + subtitleMeta + "  ");
-        sourcePill.setForeground(new Color(212, 212, 216));
+        sourcePill.setForeground(new Color(186, 230, 253));
         sourcePill.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        sourcePill.setBorder(BorderFactory.createLineBorder(new Color(63, 63, 70), 1, true));
+        sourcePill.setBorder(BorderFactory.createLineBorder(new Color(56, 189, 248, 100), 1, true));
         titleBox.add(titleLbl);
         titleBox.add(sourcePill);
 
-        JLabel shortcutHint = new JLabel("Press 'Space' to flip, '← / →' to navigate", SwingConstants.CENTER);
-        shortcutHint.setForeground(new Color(161, 161, 170));
+        JLabel shortcutHint = new JLabel("Shortcuts: [Space] Flip Card   •   [← / →] Prev / Next Card", SwingConstants.CENTER);
+        shortcutHint.setForeground(new Color(148, 163, 184));
         shortcutHint.setFont(new Font("SansSerif", Font.PLAIN, 12));
 
         JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         rightActions.setOpaque(false);
         rightActions.add(stopwatchLabel);
 
-        JButton closeBtn = new JButton("✕");
+        JButton closeBtn = new JButton("✕ Close");
         closeBtn.setForeground(Color.WHITE);
         closeBtn.setContentAreaFilled(false);
-        closeBtn.setBorderPainted(false);
-        closeBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
+        closeBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
         closeBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         closeBtn.addActionListener(e -> {
             stopwatch.stop();
@@ -162,10 +146,14 @@ public class MaximizedStudyDialog {
         topBar.add(rightActions, BorderLayout.EAST);
         root.add(topBar, BorderLayout.NORTH);
 
-        // Center Floating Flashcard Card
-        JLabel cardCountLabel = new JLabel("1/" + deck.size());
-        cardCountLabel.setForeground(new Color(161, 161, 170));
-        cardCountLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        // Center Card
+        JLabel cardCountLabel = new JLabel("1 / " + deck.size());
+        cardCountLabel.setForeground(new Color(148, 163, 184));
+        cardCountLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+
+        JLabel cardStatusBadge = new JLabel("Ungraded", SwingConstants.CENTER);
+        cardStatusBadge.setForeground(new Color(148, 163, 184));
+        cardStatusBadge.setFont(new Font("SansSerif", Font.BOLD, 12));
 
         JTextArea cardBodyArea = new JTextArea();
         cardBodyArea.setEditable(false);
@@ -173,63 +161,75 @@ public class MaximizedStudyDialog {
         cardBodyArea.setWrapStyleWord(true);
         cardBodyArea.setOpaque(false);
         cardBodyArea.setForeground(Color.WHITE);
-        cardBodyArea.setFont(new Font("SansSerif", Font.PLAIN, 23));
-        cardBodyArea.setBorder(new EmptyBorder(30, 12, 20, 12));
+        cardBodyArea.setFont(new Font("SansSerif", Font.PLAIN, 22));
+        cardBodyArea.setBorder(new EmptyBorder(28, 12, 20, 12));
 
-        JLabel seeAnswerHint = new JLabel("See answer", SwingConstants.CENTER);
-        seeAnswerHint.setForeground(new Color(161, 161, 170));
+        JLabel seeAnswerHint = new JLabel("Click card or press Space to flip", SwingConstants.CENTER);
+        seeAnswerHint.setForeground(new Color(148, 163, 184));
         seeAnswerHint.setFont(new Font("SansSerif", Font.PLAIN, 12));
 
-        JButton missedBtn = new JButton("✕  0");
-        JButton gotItBtn = new JButton("0  ✓");
+        JButton missedBtn = new JButton("✕ Review (0)");
+        JButton gotItBtn = new JButton("✓ Mastered (0)");
 
         Runnable renderCard = () -> {
-            if (deck.isEmpty()) {
-                cardCountLabel.setText("0/0");
-                cardBodyArea.setText("No cards in deck.");
-                return;
-            }
+            if (deck.isEmpty()) return;
             if (index[0] >= deck.size()) index[0] = 0;
             Flashcard c = deck.get(index[0]);
-            cardCountLabel.setText((index[0] + 1) + "/" + deck.size());
+            cardCountLabel.setText("Card " + (index[0] + 1) + " of " + deck.size());
+
+            Boolean verdict = cardVerdictMap.get(index[0]);
+            if (verdict == null) {
+                cardStatusBadge.setText("Status: Not yet marked");
+                cardStatusBadge.setForeground(new Color(148, 163, 184));
+            } else if (verdict) {
+                cardStatusBadge.setText("Status: ✓ Mastered");
+                cardStatusBadge.setForeground(new Color(74, 222, 128));
+            } else {
+                cardStatusBadge.setText("Status: ✕ Needs Review");
+                cardStatusBadge.setForeground(new Color(248, 113, 113));
+            }
+
             if (showingAnswer[0]) {
                 cardBodyArea.setForeground(new Color(167, 243, 208));
                 cardBodyArea.setFont(new Font("SansSerif", Font.PLAIN, 19));
-                cardBodyArea.setText(c.getDefinition());
-                seeAnswerHint.setText("Showing Answer (Click or press Space to see Term)");
+                cardBodyArea.setText("DEFINITION:\n\n" + c.getDefinition());
+                seeAnswerHint.setText("Showing Definition — Click or press Space to view Term");
             } else {
                 cardBodyArea.setForeground(Color.WHITE);
-                cardBodyArea.setFont(new Font("SansSerif", Font.PLAIN, 23));
-                cardBodyArea.setText(c.getTerm());
-                seeAnswerHint.setText("See answer");
+                cardBodyArea.setFont(new Font("SansSerif", Font.BOLD, 22));
+                cardBodyArea.setText("TERM:\n\n" + c.getTerm());
+                seeAnswerHint.setText("Showing Term — Click or press Space to reveal Definition");
             }
-            missedBtn.setText("✕  " + missedCount[0]);
-            gotItBtn.setText(gotItCount[0] + "  ✓");
+
+            long missedTotal = cardVerdictMap.values().stream().filter(v -> !v).count();
+            long gotItTotal = cardVerdictMap.values().stream().filter(v -> v).count();
+            missedBtn.setText("✕ Needs Review (" + missedTotal + "/" + deck.size() + ")");
+            gotItBtn.setText("✓ Mastered (" + gotItTotal + "/" + deck.size() + ")");
         };
 
-        // ⋮ Popup Menu inside the card
-        JButton cardMenuBtn = new JButton("⋮");
+        // ⋮ Options Menu
+        JButton cardMenuBtn = new JButton("⋮ Options");
         cardMenuBtn.setForeground(Color.WHITE);
         cardMenuBtn.setContentAreaFilled(false);
         cardMenuBtn.setBorderPainted(false);
-        cardMenuBtn.setFont(new Font("SansSerif", Font.BOLD, 18));
+        cardMenuBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
         cardMenuBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         JPopupMenu cardPopup = new JPopupMenu();
-        JMenuItem restartItem = new JMenuItem("↻  Restart set");
+        JMenuItem restartItem = new JMenuItem("↻  Reset progress & restart deck");
         restartItem.addActionListener(e -> {
             index[0] = 0;
             showingAnswer[0] = false;
-            missedCount[0] = 0;
-            gotItCount[0] = 0;
+            cardVerdictMap.clear();
             renderCard.run();
         });
 
-        JMenuItem shuffleItem = new JMenuItem("🔀  Shuffle set");
+        JMenuItem shuffleItem = new JMenuItem("🔀  Shuffle cards");
         shuffleItem.addActionListener(e -> {
             Collections.shuffle(deck);
             index[0] = 0;
             showingAnswer[0] = false;
+            cardVerdictMap.clear();
             onDataChanged.run();
             renderCard.run();
         });
@@ -258,7 +258,7 @@ public class MaximizedStudyDialog {
             }
         });
 
-        JMenuItem editCardItem = new JMenuItem("✎  Edit flashcard");
+        JMenuItem editCardItem = new JMenuItem("✎  Edit current flashcard");
         editCardItem.addActionListener(e -> {
             if (deck.isEmpty()) return;
             Flashcard current = deck.get(index[0]);
@@ -281,13 +281,14 @@ public class MaximizedStudyDialog {
             }
         });
 
-        JMenuItem deleteCardItem = new JMenuItem("🗑  Delete flashcard");
+        JMenuItem deleteCardItem = new JMenuItem("🗑  Delete current flashcard");
         deleteCardItem.addActionListener(e -> {
             if (deck.size() <= 1) {
                 JOptionPane.showMessageDialog(dialog, "Cannot delete the last card in the set.");
                 return;
             }
             deck.remove(index[0]);
+            cardVerdictMap.clear();
             if (index[0] >= deck.size()) index[0] = deck.size() - 1;
             showingAnswer[0] = false;
             onDataChanged.run();
@@ -323,21 +324,22 @@ public class MaximizedStudyDialog {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(39, 39, 42));
-                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 32, 32));
-                g2.setColor(new Color(63, 63, 70));
-                g2.draw(new RoundRectangle2D.Double(0.5, 0.5, getWidth() - 1, getHeight() - 1, 32, 32));
+                g2.setColor(new Color(30, 41, 59));
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 28, 28));
+                g2.setColor(new Color(71, 85, 105));
+                g2.draw(new RoundRectangle2D.Double(0.5, 0.5, getWidth() - 1, getHeight() - 1, 28, 28));
                 g2.dispose();
             }
         };
         centerCard.setOpaque(false);
-        centerCard.setPreferredSize(new Dimension(440, 410));
+        centerCard.setPreferredSize(new Dimension(520, 400));
         centerCard.setBorder(new EmptyBorder(22, 28, 22, 28));
         centerCard.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         JPanel cardHeader = new JPanel(new BorderLayout());
         cardHeader.setOpaque(false);
         cardHeader.add(cardCountLabel, BorderLayout.WEST);
+        cardHeader.add(cardStatusBadge, BorderLayout.CENTER);
         cardHeader.add(cardMenuBtn, BorderLayout.EAST);
 
         centerCard.add(cardHeader, BorderLayout.NORTH);
@@ -355,16 +357,16 @@ public class MaximizedStudyDialog {
         cardBodyArea.addMouseListener(flipAdapter);
         seeAnswerHint.addMouseListener(flipAdapter);
 
-        // Bottom Navigation Controls (←  ✕ 0   0 ✓  →)
-        JPanel bottomNav = new JPanel(new FlowLayout(FlowLayout.CENTER, 18, 12));
+        // Bottom Controls
+        JPanel bottomNav = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 14));
         bottomNav.setOpaque(false);
 
-        JButton prevBtn = createPillButton("←", new Color(212, 212, 216));
+        JButton prevBtn = createPillButton("← Prev", new Color(226, 232, 240));
         missedBtn.setForeground(new Color(248, 113, 113));
         stylePillButton(missedBtn);
         gotItBtn.setForeground(new Color(74, 222, 128));
         stylePillButton(gotItBtn);
-        JButton nextBtn = createPillButton("→", new Color(147, 197, 253));
+        JButton nextBtn = createPillButton("Next →", new Color(147, 197, 253));
 
         Runnable goPrev = () -> {
             index[0] = (index[0] - 1 + deck.size()) % deck.size();
@@ -377,15 +379,37 @@ public class MaximizedStudyDialog {
             renderCard.run();
         };
 
+        Runnable recordVerdictAndAdvance = () -> {
+            renderCard.run();
+            if (cardVerdictMap.size() == deck.size()) {
+                long gotItTotal = cardVerdictMap.values().stream().filter(v -> v).count();
+                long missedTotal = deck.size() - gotItTotal;
+                int opt = JOptionPane.showConfirmDialog(dialog,
+                        String.format("Deck Complete!\n\n✓ Mastered: %d of %d\n✕ Needs Review: %d of %d\n\nWould you like to reset the deck and practice again?",
+                                gotItTotal, deck.size(), missedTotal, deck.size()),
+                        "Flashcard Set Completed", JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE);
+                if (opt == JOptionPane.YES_OPTION) {
+                    cardVerdictMap.clear();
+                    index[0] = 0;
+                    showingAnswer[0] = false;
+                    renderCard.run();
+                }
+            } else if (index[0] < deck.size() - 1) {
+                index[0]++;
+                showingAnswer[0] = false;
+                renderCard.run();
+            }
+        };
+
         prevBtn.addActionListener(e -> goPrev.run());
         nextBtn.addActionListener(e -> goNext.run());
         missedBtn.addActionListener(e -> {
-            missedCount[0]++;
-            goNext.run();
+            cardVerdictMap.put(index[0], false); // Overwrites verdict for this specific card index!
+            recordVerdictAndAdvance.run();
         });
         gotItBtn.addActionListener(e -> {
-            gotItCount[0]++;
-            goNext.run();
+            cardVerdictMap.put(index[0], true);  // Overwrites verdict for this specific card index!
+            recordVerdictAndAdvance.run();
         });
 
         bottomNav.add(prevBtn);
@@ -404,7 +428,6 @@ public class MaximizedStudyDialog {
 
         root.add(centerWrapper, BorderLayout.CENTER);
 
-        // Keyboard Shortcuts: SPACE to flip, LEFT / RIGHT arrows to navigate
         root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "flipCard");
         root.getActionMap().put("flipCard", new AbstractAction() {
             @Override
@@ -430,7 +453,7 @@ public class MaximizedStudyDialog {
     }
 
     // =========================================================================
-    // 2. MAXIMIZED QUIZ FOCUS VIEW (Matches image_0341c5.png)
+    // 2. MAXIMIZED QUIZ FOCUS VIEW
     // =========================================================================
     public static void showQuizModal(
             JFrame parent,
@@ -442,15 +465,15 @@ public class MaximizedStudyDialog {
     ) {
         if (quiz == null || quiz.getQuestions().isEmpty()) return;
 
-        JDialog dialog = new JDialog(parent, quizTitle, true);
-        dialog.setSize(1180, 760);
+        JDialog dialog = new JDialog(parent, "Interactive Quiz Runner — " + quizTitle, true);
+        dialog.setSize(1140, 740);
         dialog.setLocationRelativeTo(parent);
 
         facade.startStudySession(quiz);
 
         final int[] elapsedSeconds = {0};
         JLabel stopwatchLabel = new JLabel("");
-        stopwatchLabel.setForeground(new Color(161, 161, 170));
+        stopwatchLabel.setForeground(new Color(148, 163, 184));
         stopwatchLabel.setFont(new Font("Monospaced", Font.BOLD, 13));
         stopwatchLabel.setVisible(false);
 
@@ -460,10 +483,9 @@ public class MaximizedStudyDialog {
         });
 
         JPanel root = new JPanel(new BorderLayout());
-        root.setBackground(new Color(24, 25, 28));
+        root.setBackground(new Color(15, 23, 42));
         root.setBorder(new EmptyBorder(18, 28, 24, 28));
 
-        // Top Header Bar
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setOpaque(false);
 
@@ -473,9 +495,9 @@ public class MaximizedStudyDialog {
         titleLbl.setForeground(Color.WHITE);
         titleLbl.setFont(new Font("SansSerif", Font.BOLD, 18));
         JLabel sourcePill = new JLabel("  " + subtitleMeta + "  ");
-        sourcePill.setForeground(new Color(212, 212, 216));
+        sourcePill.setForeground(new Color(186, 230, 253));
         sourcePill.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        sourcePill.setBorder(BorderFactory.createLineBorder(new Color(63, 63, 70), 1, true));
+        sourcePill.setBorder(BorderFactory.createLineBorder(new Color(56, 189, 248, 100), 1, true));
         titleBox.add(titleLbl);
         titleBox.add(sourcePill);
 
@@ -483,11 +505,10 @@ public class MaximizedStudyDialog {
         rightActions.setOpaque(false);
         rightActions.add(stopwatchLabel);
 
-        JButton closeBtn = new JButton("✕");
+        JButton closeBtn = new JButton("✕ Close");
         closeBtn.setForeground(Color.WHITE);
         closeBtn.setContentAreaFilled(false);
-        closeBtn.setBorderPainted(false);
-        closeBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
+        closeBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
         closeBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         closeBtn.addActionListener(e -> {
             stopwatch.stop();
@@ -499,20 +520,19 @@ public class MaximizedStudyDialog {
         topBar.add(rightActions, BorderLayout.EAST);
         root.add(topBar, BorderLayout.NORTH);
 
-        // Center Quiz Container (680px wide)
         JPanel quizCenterPanel = new JPanel(new BorderLayout(0, 16));
         quizCenterPanel.setOpaque(false);
-        quizCenterPanel.setPreferredSize(new Dimension(680, 540));
+        quizCenterPanel.setPreferredSize(new Dimension(700, 540));
 
-        JLabel qCountLabel = new JLabel("1/" + quiz.getQuestions().size());
-        qCountLabel.setForeground(new Color(161, 161, 170));
-        qCountLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        JLabel qCountLabel = new JLabel("Question 1 of " + quiz.getQuestions().size());
+        qCountLabel.setForeground(new Color(148, 163, 184));
+        qCountLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
 
-        JButton quizMenuBtn = new JButton("⋮");
+        JButton quizMenuBtn = new JButton("⋮ Options");
         quizMenuBtn.setForeground(Color.WHITE);
         quizMenuBtn.setContentAreaFilled(false);
         quizMenuBtn.setBorderPainted(false);
-        quizMenuBtn.setFont(new Font("SansSerif", Font.BOLD, 18));
+        quizMenuBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
         quizMenuBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         JPanel qTopRow = new JPanel(new BorderLayout());
@@ -534,7 +554,6 @@ public class MaximizedStudyDialog {
         headerAndPrompt.add(promptArea, BorderLayout.CENTER);
         quizCenterPanel.add(headerAndPrompt, BorderLayout.NORTH);
 
-        // Option Cards (A, B, C, D)
         JPanel optionsStack = new JPanel(new GridLayout(4, 1, 0, 12));
         optionsStack.setOpaque(false);
         JButton[] optionCards = new JButton[4];
@@ -548,8 +567,8 @@ public class MaximizedStudyDialog {
             StudySession s = facade.getActiveStudySession();
             if (s == null) return;
             if (s.isCompleted()) {
-                qCountLabel.setText("Completed");
-                promptArea.setText(String.format("🎉 Quiz Completed! Final Score: %d / %d (%.1f%%)\n"
+                qCountLabel.setText("Quiz Completed");
+                promptArea.setText(String.format("🎉 Session Completed! Final Score: %d / %d (%.1f%%)\n"
                                 + "Your F10 Progress Analytics Dashboard has been automatically updated via Observer Pattern.",
                         s.getCurrentScore(), s.getTotalQuestions(),
                         (s.getCurrentScore() * 100.0) / Math.max(1, s.getTotalQuestions())));
@@ -559,7 +578,7 @@ public class MaximizedStudyDialog {
             }
             QuizQuestion q = s.getCurrentQuestion();
             if (q == null) return;
-            qCountLabel.setText((s.getCurrentQuestionIndex() + 1) + "/" + s.getTotalQuestions());
+            qCountLabel.setText("Question " + (s.getCurrentQuestionIndex() + 1) + " of " + s.getTotalQuestions());
             promptArea.setText(q.getPrompt());
             selectedOption[0] = -1;
             feedbackBanner.setText(" ");
@@ -568,7 +587,7 @@ public class MaximizedStudyDialog {
             for (int i = 0; i < 4; i++) {
                 if (i < opts.size()) {
                     optionCards[i].setVisible(true);
-                    optionCards[i].setBackground(new Color(39, 39, 42));
+                    optionCards[i].setBackground(new Color(30, 41, 59));
                     optionCards[i].setForeground(Color.WHITE);
                     optionCards[i].setText("<html><div style='padding:6px;'><b>" + (char) ('A' + i) + ".</b>  " + opts.get(i) + "</div></html>");
                 } else {
@@ -582,11 +601,11 @@ public class MaximizedStudyDialog {
             JButton cardBtn = new JButton();
             cardBtn.setHorizontalAlignment(SwingConstants.LEFT);
             cardBtn.setFocusPainted(false);
-            cardBtn.setBackground(new Color(39, 39, 42));
+            cardBtn.setBackground(new Color(30, 41, 59));
             cardBtn.setForeground(Color.WHITE);
             cardBtn.setFont(new Font("SansSerif", Font.PLAIN, 15));
             cardBtn.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(new Color(63, 63, 70), 1, true),
+                    BorderFactory.createLineBorder(new Color(71, 85, 105), 1, true),
                     new EmptyBorder(10, 14, 10, 14)
             ));
             cardBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -603,15 +622,15 @@ public class MaximizedStudyDialog {
                     } else if (j == optIdx) {
                         optionCards[j].setBackground(new Color(127, 29, 29));
                     } else {
-                        optionCards[j].setBackground(new Color(39, 39, 42));
+                        optionCards[j].setBackground(new Color(30, 41, 59));
                     }
                 }
                 if (optIdx == currentQ.getCorrectAnswerIndex()) {
                     feedbackBanner.setForeground(new Color(74, 222, 128));
-                    feedbackBanner.setText("✓ Correct! Click 'Next' to record answer and advance.");
+                    feedbackBanner.setText("✓ Correct! Click 'Next Question' to record your answer.");
                 } else {
                     feedbackBanner.setForeground(new Color(248, 113, 113));
-                    feedbackBanner.setText("✕ Incorrect. Correct option is " + (char) ('A' + currentQ.getCorrectAnswerIndex()) + ". Click 'Next' to continue.");
+                    feedbackBanner.setText("✕ Incorrect. Correct option is " + (char) ('A' + currentQ.getCorrectAnswerIndex()) + ". Click 'Next Question' to continue.");
                 }
             });
             optionCards[i] = cardBtn;
@@ -620,20 +639,19 @@ public class MaximizedStudyDialog {
 
         quizCenterPanel.add(optionsStack, BorderLayout.CENTER);
 
-        // Bottom Bar: Hint | Undo (F09) | Next
         JPanel bottomRow = new JPanel(new BorderLayout(10, 8));
         bottomRow.setOpaque(false);
         bottomRow.add(feedbackBanner, BorderLayout.NORTH);
 
-        JButton hintBtn = createPillButton("Hint ⌄", new Color(212, 212, 216));
+        JButton hintBtn = createPillButton("💡 Hint", new Color(226, 232, 240));
         hintBtn.addActionListener(e -> {
             StudySession s = facade.getActiveStudySession();
             if (s != null && s.getCurrentQuestion() != null) {
                 QuizQuestion q = s.getCurrentQuestion();
                 String correctText = q.getOptions().get(q.getCorrectAnswerIndex());
-                String preview = correctText.length() > 12 ? correctText.substring(0, 12) + "..." : correctText;
+                String preview = correctText.length() > 14 ? correctText.substring(0, 14) + "..." : correctText;
                 JOptionPane.showMessageDialog(dialog,
-                        "Hint: Review how this concept relates to '" + preview + "' in your course notes.",
+                        "Study Hint: Recall how this concept connects to '" + preview + "' in your course material.",
                         "Quiz Hint", JOptionPane.INFORMATION_MESSAGE);
             }
         });
@@ -641,7 +659,7 @@ public class MaximizedStudyDialog {
         JPanel rightBottomBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         rightBottomBtns.setOpaque(false);
 
-        JButton undoBtn = createPillButton("Undo (F09)", new Color(212, 212, 216));
+        JButton undoBtn = createPillButton("↶ Undo (F09)", new Color(226, 232, 240));
         undoBtn.addActionListener(e -> {
             if (facade.undoLastSessionAnswer()) {
                 onSessionUpdated.run();
@@ -651,12 +669,12 @@ public class MaximizedStudyDialog {
             }
         });
 
-        JButton nextBtn = new JButton("Next");
+        JButton nextBtn = new JButton("Next Question →");
         nextBtn.setFocusPainted(false);
-        nextBtn.setBackground(new Color(79, 70, 229));
+        nextBtn.setBackground(new Color(37, 99, 235));
         nextBtn.setForeground(Color.WHITE);
         nextBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
-        nextBtn.setBorder(new EmptyBorder(8, 22, 8, 22));
+        nextBtn.setBorder(new EmptyBorder(8, 20, 8, 20));
         nextBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         nextBtn.addActionListener(e -> {
             StudySession s = facade.getActiveStudySession();
@@ -674,7 +692,6 @@ public class MaximizedStudyDialog {
         bottomRow.add(rightBottomBtns, BorderLayout.EAST);
         quizCenterPanel.add(bottomRow, BorderLayout.SOUTH);
 
-        // ⋮ Popup Menu for Quiz (+ Add question, Edit question, Delete question, Add stopwatch)
         JPopupMenu quizPopup = new JPopupMenu();
         JMenuItem addQItem = new JMenuItem("＋  Add question");
         addQItem.addActionListener(e -> {
@@ -753,7 +770,7 @@ public class MaximizedStudyDialog {
             }
         });
 
-        JMenuItem stopwatchItem = new JMenuItem("⏱  Add stopwatch");
+        JMenuItem stopwatchItem = new JMenuItem("⏱  Toggle stopwatch");
         stopwatchItem.addActionListener(e -> {
             if (stopwatch.isRunning()) {
                 stopwatch.stop();
@@ -784,6 +801,214 @@ public class MaximizedStudyDialog {
         dialog.setVisible(true);
     }
 
+    // =========================================================================
+    // 3. MAXIMIZED CODE LAB IDE VIEW (F07 Synthesis & F08 AI Grader)
+    // =========================================================================
+    public static void showCodeLabModal(
+            JFrame parent,
+            String subjectId,
+            StudyAgentFacade facade,
+            JTextField sharedTopicField,
+            JTextArea sharedProblemArea,
+            JTextArea sharedEditorArea,
+            JTextArea sharedFeedbackArea,
+            Runnable onDataChanged
+    ) {
+        JDialog dialog = new JDialog(parent, "Maximized Code Lab IDE (F07 & F08) — " + subjectId, true);
+        dialog.setSize(1200, 760);
+        dialog.setLocationRelativeTo(parent);
+
+        JPanel root = new JPanel(new BorderLayout(12, 12));
+        root.setBackground(new Color(15, 23, 42));
+        root.setBorder(new EmptyBorder(16, 22, 18, 22));
+
+        // 2-Row Top Toolbar prevents any button overlap in fullscreen!
+        JPanel topToolbar = new JPanel(new BorderLayout(0, 10));
+        topToolbar.setOpaque(false);
+
+        // Row 1: Title on Left | Close Button on Right
+        JPanel headerRow1 = new JPanel(new BorderLayout());
+        headerRow1.setOpaque(false);
+        JLabel titleLbl = new JLabel("💻 Code Synthesis & AI Grader Workbench (" + subjectId + ")");
+        titleLbl.setForeground(Color.WHITE);
+        titleLbl.setFont(new Font("SansSerif", Font.BOLD, 18));
+
+        JButton closeBtn = createPillButton("✕ Close IDE", Color.WHITE);
+        closeBtn.addActionListener(e -> dialog.dispose());
+
+        headerRow1.add(titleLbl, BorderLayout.WEST);
+        headerRow1.add(closeBtn, BorderLayout.EAST);
+
+        // Row 2: Topic Input on Left | Action Buttons on Right
+        JPanel headerRow2 = new JPanel(new BorderLayout(12, 0));
+        headerRow2.setOpaque(false);
+
+        JPanel topicInputBox = new JPanel(new BorderLayout(8, 0));
+        topicInputBox.setOpaque(false);
+        JLabel topicLbl = new JLabel("CS Topic:");
+        topicLbl.setForeground(new Color(203, 213, 225));
+        topicLbl.setFont(new Font("SansSerif", Font.BOLD, 13));
+        JTextField modalTopicField = new JTextField(sharedTopicField.getText());
+        topicInputBox.add(topicLbl, BorderLayout.WEST);
+        topicInputBox.add(modalTopicField, BorderLayout.CENTER);
+
+        JPanel actionBtnsBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actionBtnsBox.setOpaque(false);
+
+        JButton genProblemBtn = new JButton("⚡ F07: Synthesize Problem");
+        genProblemBtn.setBackground(new Color(37, 99, 235));
+        genProblemBtn.setForeground(Color.WHITE);
+        genProblemBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+
+        JButton clearBtn = new JButton("Clear Editor (Test F08 Guard)");
+
+        JButton gradeBtn = new JButton("✓ F08: Grade Solution");
+        gradeBtn.setBackground(new Color(16, 185, 129));
+        gradeBtn.setForeground(Color.WHITE);
+        gradeBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+
+        actionBtnsBox.add(genProblemBtn);
+        actionBtnsBox.add(clearBtn);
+        actionBtnsBox.add(gradeBtn);
+
+        headerRow2.add(topicInputBox, BorderLayout.CENTER);
+        headerRow2.add(actionBtnsBox, BorderLayout.EAST);
+
+        JProgressBar ideProgress = new JProgressBar();
+        ideProgress.setStringPainted(true);
+        ideProgress.setVisible(false);
+
+        JPanel headerStack = new JPanel(new GridLayout(2, 1, 0, 8));
+        headerStack.setOpaque(false);
+        headerStack.add(headerRow1);
+        headerStack.add(headerRow2);
+
+        topToolbar.add(headerStack, BorderLayout.CENTER);
+        topToolbar.add(ideProgress, BorderLayout.SOUTH);
+        root.add(topToolbar, BorderLayout.NORTH);
+
+        // Left Split: Problem Specification (Top) + AI Grading Feedback (Bottom)
+        JTextArea modalProblemArea = new JTextArea(sharedProblemArea.getText());
+        modalProblemArea.setEditable(false);
+        modalProblemArea.setLineWrap(true);
+        modalProblemArea.setWrapStyleWord(true);
+        modalProblemArea.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        modalProblemArea.setBorder(new EmptyBorder(10, 12, 10, 12));
+
+        JPanel problemPanel = new JPanel(new BorderLayout());
+        problemPanel.setBorder(BorderFactory.createTitledBorder("1. Synthesized Coding Problem Specification (F07)"));
+        problemPanel.add(new JScrollPane(modalProblemArea), BorderLayout.CENTER);
+
+        JTextArea modalFeedbackArea = new JTextArea(sharedFeedbackArea.getText());
+        modalFeedbackArea.setEditable(false);
+        modalFeedbackArea.setLineWrap(true);
+        modalFeedbackArea.setWrapStyleWord(true);
+        modalFeedbackArea.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        modalFeedbackArea.setBorder(new EmptyBorder(10, 12, 10, 12));
+
+        JPanel feedbackPanel = new JPanel(new BorderLayout());
+        feedbackPanel.setBorder(BorderFactory.createTitledBorder("3. AI Semantic Grading, Score & Hints (F08)"));
+        feedbackPanel.add(new JScrollPane(modalFeedbackArea), BorderLayout.CENTER);
+
+        JSplitPane leftVerticalSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, problemPanel, feedbackPanel);
+        leftVerticalSplit.setDividerLocation(300);
+
+        // Right Split: Full-Height Monospaced Java Code Editor
+        JTextArea modalCodeEditor = new JTextArea(sharedEditorArea.getText());
+        modalCodeEditor.setFont(new Font("Monospaced", Font.PLAIN, 15));
+        modalCodeEditor.setTabSize(4);
+        modalCodeEditor.setBorder(new EmptyBorder(12, 14, 12, 14));
+
+        JPanel editorPanel = new JPanel(new BorderLayout());
+        editorPanel.setBorder(BorderFactory.createTitledBorder("2. Java Solution Editor (Write your code here)"));
+        editorPanel.add(new JScrollPane(modalCodeEditor), BorderLayout.CENTER);
+
+        JSplitPane mainIdeSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftVerticalSplit, editorPanel);
+        mainIdeSplit.setDividerLocation(470);
+        root.add(mainIdeSplit, BorderLayout.CENTER);
+
+        final CodingProblem[] activeProblem = {null};
+
+        clearBtn.addActionListener(e -> {
+            modalCodeEditor.setText("");
+            sharedEditorArea.setText("");
+        });
+
+        genProblemBtn.addActionListener(e -> {
+            String topic = modalTopicField.getText().trim();
+            sharedTopicField.setText(topic);
+            genProblemBtn.setEnabled(false);
+            ideProgress.setIndeterminate(true);
+            ideProgress.setString("⚡ Synthesizing coding problem for '" + topic + "'...");
+            ideProgress.setVisible(true);
+
+            new SwingWorker<CodingProblem, Void>() {
+                @Override
+                protected CodingProblem doInBackground() throws Exception {
+                    return facade.generateCodingProblem(topic);
+                }
+
+                @Override
+                protected void done() {
+                    genProblemBtn.setEnabled(true);
+                    ideProgress.setVisible(false);
+                    try {
+                        activeProblem[0] = get();
+                        String desc = activeProblem[0].getProblemTitle() + "\n\n"
+                                + activeProblem[0].getDescription() + "\n\nConstraints: " + activeProblem[0].getConstraints();
+                        modalProblemArea.setText(desc);
+                        sharedProblemArea.setText(desc);
+                        modalCodeEditor.setText(activeProblem[0].getStarterCode());
+                        sharedEditorArea.setText(activeProblem[0].getStarterCode());
+                        onDataChanged.run();
+                    } catch (Exception ex) {
+                        Throwable c = ex.getCause() != null ? ex.getCause() : ex;
+                        JOptionPane.showMessageDialog(dialog, c.getMessage(), "F07 Academic Safety & Scope Guard", JOptionPane.WARNING_MESSAGE);
+                    }
+                }
+            }.execute();
+        });
+
+        gradeBtn.addActionListener(e -> {
+            String code = modalCodeEditor.getText();
+            sharedEditorArea.setText(code);
+            gradeBtn.setEnabled(false);
+            ideProgress.setIndeterminate(true);
+            ideProgress.setString("⚡ Evaluating Java solution with AI Grader (F08)...");
+            ideProgress.setVisible(true);
+
+            new SwingWorker<GradeEvaluation, Void>() {
+                @Override
+                protected GradeEvaluation doInBackground() throws Exception {
+                    if (activeProblem[0] == null) {
+                        activeProblem[0] = facade.generateCodingProblem(modalTopicField.getText().trim());
+                    }
+                    return facade.gradeSubmission(activeProblem[0], code);
+                }
+
+                @Override
+                protected void done() {
+                    gradeBtn.setEnabled(true);
+                    ideProgress.setVisible(false);
+                    try {
+                        GradeEvaluation eval = get();
+                        String fb = "SCORE: " + eval.getScore() + " / 100\n\n"
+                                + eval.getFeedback() + "\n\nQUALITATIVE HINTS:\n• "
+                                + String.join("\n• ", eval.getHints());
+                        modalFeedbackArea.setText(fb);
+                        sharedFeedbackArea.setText(fb);
+                    } catch (Exception ex) {
+                        Throwable c = ex.getCause() != null ? ex.getCause() : ex;
+                        JOptionPane.showMessageDialog(dialog, c.getMessage(), "F08 Input Validation Guard", JOptionPane.WARNING_MESSAGE);
+                    }
+                }
+            }.execute();
+        });
+
+        dialog.setContentPane(root);
+        dialog.setVisible(true);
+    }
+
     private static JButton createPillButton(String text, Color fg) {
         JButton b = new JButton(text);
         b.setForeground(fg);
@@ -793,11 +1018,11 @@ public class MaximizedStudyDialog {
 
     private static void stylePillButton(JButton b) {
         b.setFocusPainted(false);
-        b.setBackground(new Color(39, 39, 42));
-        b.setFont(new Font("SansSerif", Font.BOLD, 14));
+        b.setBackground(new Color(30, 41, 59));
+        b.setFont(new Font("SansSerif", Font.BOLD, 13));
         b.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(63, 63, 70), 1, true),
-                new EmptyBorder(8, 18, 8, 18)
+                BorderFactory.createLineBorder(new Color(71, 85, 105), 1, true),
+                new EmptyBorder(8, 16, 8, 16)
         ));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }

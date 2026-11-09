@@ -32,6 +32,7 @@ import javax.swing.JProgressBar;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
@@ -140,10 +141,10 @@ public class StudyWorkspacePanel extends JPanel {
             this.subjectId = subjectId;
             this.displayTitle = displayTitle;
             this.chatThreads.add(new ChatThread("Chat 1 — General Study",
-                    "=== " + displayTitle + " Notebook ===\n"
-                            + "• Click '+ Add sources (F02)' on the left to import course files.\n"
-                            + "• Check or uncheck individual files in the Sources list to control which files the AI uses.\n"
-                            + "• Use the Studio panel on the right to generate Flashcards, Quizzes, and Pinned Notes (click '⤢ Maximize' for full-screen focus mode!).\n"));
+                    "=== " + displayTitle + " Workbench ===\n"
+                            + "• Click '+ Add sources (F02)' on the left to import course PDFs/TXTs.\n"
+                            + "• Check or uncheck individual files in the Sources list to filter RAG context.\n"
+                            + "• Use the Studio panel on the right for Flashcards (F05), Quizzes (F06), Code Lab (F07/F08), and Sessions (F09/F10).\n"));
         }
 
         public ChatThread activeThread() {
@@ -157,58 +158,63 @@ public class StudyWorkspacePanel extends JPanel {
         }
     }
 
-    private final StudyAgentFacade facade;
-    private final Runnable onBackToNotebooks;
-    private final JLabel statusBanner;
-    private final JLabel importedDocsLabel;
+    private StudyAgentFacade facade;
+    private Runnable onBackToNotebooks;
+    private JLabel statusBanner;
+    private JLabel importedDocsLabel;
     private Runnable onStateChanged = () -> {};
 
-    private final Map<String, NotebookState> notebookMap = new HashMap<>();
+    private Map<String, NotebookState> notebookMap = new HashMap<>();
     private String activeSubjectId = "EECS3311";
     private boolean localMode = true;
+    private boolean sourcesMinimized = false;
 
-    private final JLabel notebookHeaderLabel = new JLabel("💻 EECS 3311 - Software Design");
-    private final JButton engineModeBtn = new JButton("F01: Local AI Mode");
-    private final JProgressBar generationProgressBar = new JProgressBar();
+    private JLabel notebookHeaderLabel = new JLabel("💻 EECS 3311 - Software Design");
+    private JButton toggleSourcesBtn = new JButton("◀ Minimize Sources");
+    private JButton engineModeBtn = new JButton("F01: Local AI Mode");
+    private JProgressBar generationProgressBar = new JProgressBar();
 
-    // Left Column: Interactive Sources Checkboxes
-    private final JPanel sourcesCheckListPanel = new JPanel();
-    private final JCheckBox selectAllSourcesCheck = new JCheckBox("Select all", true);
-    private final JTextField folderPathField = new JTextField("sample-course-notes", 14);
-    private final JCheckBox webSearchToggle = new JCheckBox("🌐 Web Search (F03)", true);
-    private final JLabel sourceCountPill = new JLabel("0 sources selected");
+    private JPanel leftSourcesPanel;
+    private JSplitPane mainSplit;
 
-    // Center Column: Per-Notebook Chat
-    private final JComboBox<ChatThread> chatThreadSelector = new JComboBox<>();
-    private final JTextArea chatTranscriptArea = new JTextArea();
-    private final JTextField chatInputField = new JTextField();
+    // Left Column: Sources
+    private JPanel sourcesCheckListPanel = new JPanel();
+    private JCheckBox selectAllSourcesCheck = new JCheckBox("Select all", true);
+    private JTextField folderPathField = new JTextField("sample-course-notes", 14);
+    private JCheckBox webSearchToggle = new JCheckBox("🌐 Web Search (F03)", true);
+    private JLabel sourceCountPill = new JLabel("0 sources selected");
+
+    // Center Column: Chat
+    private JComboBox<ChatThread> chatThreadSelector = new JComboBox<>();
+    private JTextArea chatTranscriptArea = new JTextArea();
+    private JTextField chatInputField = new JTextField();
     private boolean updatingThreadCombo = false;
 
-    // Right Column: Studio Library & Viewers
-    private final DefaultListModel<StudioArtifact> studioListModel = new DefaultListModel<>();
-    private final JList<StudioArtifact> studioJList = new JList<>(studioListModel);
-    private final CardLayout studioCardLayout = new CardLayout();
-    private final JPanel studioViewerContainer = new JPanel(studioCardLayout);
+    // Right Column: Studio
+    private DefaultListModel<StudioArtifact> studioListModel = new DefaultListModel<>();
+    private JList<StudioArtifact> studioJList = new JList<>(studioListModel);
+    private CardLayout studioCardLayout = new CardLayout();
+    private JPanel studioViewerContainer = new JPanel(studioCardLayout);
 
-    private final JLabel flashcardCounterLabel = new JLabel("Select or generate a Flashcard deck", SwingConstants.CENTER);
-    private final JTextArea flashcardTextArea = new JTextArea(5, 24);
+    private JLabel flashcardCounterLabel = new JLabel("Select or generate a Flashcard deck", SwingConstants.CENTER);
+    private JTextArea flashcardTextArea = new JTextArea(5, 24);
 
-    private final JTextField noteTitleField = new JTextField("Study Note", 16);
-    private final JTextArea noteEditorArea = new JTextArea(8, 24);
+    private JTextField noteTitleField = new JTextField("Study Note", 16);
+    private JTextArea noteEditorArea = new JTextArea(8, 24);
     private StudioArtifact currentlyEditingNote;
 
-    private final JTextField codingTopicField = new JTextField("Java Strategy Pattern", 14);
-    private final JTextArea problemStatementArea = new JTextArea(4, 24);
-    private final JTextArea codeEditorArea = new JTextArea(6, 24);
-    private final JTextArea gradeFeedbackArea = new JTextArea(4, 24);
+    private JTextField codingTopicField = new JTextField("Java Strategy Pattern", 12);
+    private JTextArea problemStatementArea = new JTextArea(4, 24);
+    private JTextArea codeEditorArea = new JTextArea(6, 24);
+    private JTextArea gradeFeedbackArea = new JTextArea(4, 24);
 
-    private final JLabel sessionTimerLabel = new JLabel("⏱ 25:00");
-    private final JLabel sessionProgressLabel = new JLabel("Session: Idle");
-    private final JTextArea activeQuestionArea = new JTextArea(4, 24);
-    private final JRadioButton[] optionButtons = new JRadioButton[4];
-    private final ButtonGroup optionGroup = new ButtonGroup();
-    private final JTextArea analyticsTextArea = new JTextArea(4, 24);
-    private final MasteryChartPanel chartPanel = new MasteryChartPanel();
+    private JLabel sessionTimerLabel = new JLabel("⏱ 25:00");
+    private JLabel sessionProgressLabel = new JLabel("Session: Idle");
+    private JTextArea activeQuestionArea = new JTextArea(4, 24);
+    private JRadioButton[] optionButtons = new JRadioButton[4];
+    private ButtonGroup optionGroup = new ButtonGroup();
+    private JTextArea analyticsTextArea = new JTextArea(4, 24);
+    private MasteryChartPanel chartPanel = new MasteryChartPanel();
     private Timer pomodoroTimer;
     private int remainingSeconds = 25 * 60;
 
@@ -223,7 +229,7 @@ public class StudyWorkspacePanel extends JPanel {
 
         add(buildNotebookTopBar(), BorderLayout.NORTH);
 
-        JPanel leftSources = buildLeftSourcesColumn();
+        leftSourcesPanel = buildLeftSourcesColumn();
         JPanel centerChat = buildCenterChatColumn();
         JPanel rightStudio = buildRightStudioColumn();
 
@@ -231,12 +237,26 @@ public class StudyWorkspacePanel extends JPanel {
         rightSplit.setResizeWeight(0.58);
         rightSplit.setDividerLocation(510);
 
-        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftSources, rightSplit);
-        mainSplit.setResizeWeight(0.20);
-        mainSplit.setDividerLocation(260);
+        mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftSourcesPanel, rightSplit);
+        mainSplit.setResizeWeight(0.18);
+        mainSplit.setDividerLocation(255);
 
         add(mainSplit, BorderLayout.CENTER);
         setActiveCourse("EECS3311", "EECS 3311 - Software Design");
+    }
+
+    private void toggleSourcesColumn() {
+        sourcesMinimized = !sourcesMinimized;
+        leftSourcesPanel.setVisible(!sourcesMinimized);
+        if (sourcesMinimized) {
+            toggleSourcesBtn.setText("▶ Show Sources");
+            mainSplit.setDividerLocation(0);
+        } else {
+            toggleSourcesBtn.setText("◀ Minimize Sources");
+            mainSplit.setDividerLocation(255);
+        }
+        revalidate();
+        repaint();
     }
 
     public void setOnStateChanged(Runnable onStateChanged) {
@@ -292,12 +312,15 @@ public class StudyWorkspacePanel extends JPanel {
         JPanel top = new JPanel(new BorderLayout(12, 0));
         top.setBorder(new EmptyBorder(2, 4, 4, 4));
 
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        JButton backBtn = new JButton("← My notebooks");
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JButton backBtn = new JButton("← Course Grid");
         backBtn.addActionListener(e -> onBackToNotebooks.run());
         left.add(backBtn);
 
-        notebookHeaderLabel.setFont(new Font("SansSerif", Font.BOLD, 17));
+        toggleSourcesBtn.addActionListener(e -> toggleSourcesColumn());
+        left.add(toggleSourcesBtn);
+
+        notebookHeaderLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         left.add(notebookHeaderLabel);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
@@ -328,17 +351,23 @@ public class StudyWorkspacePanel extends JPanel {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1, true),
-                new EmptyBorder(12, 12, 12, 12)
+                new EmptyBorder(10, 12, 10, 12)
         ));
-        panel.setPreferredSize(new Dimension(260, 600));
+        panel.setPreferredSize(new Dimension(250, 600));
 
         JPanel topBox = new JPanel(new GridLayout(4, 1, 6, 6));
-        JLabel title = new JLabel("Sources");
+        JPanel headerRow = new JPanel(new BorderLayout());
+        JLabel title = new JLabel("Sources (F02)");
         title.setFont(new Font("SansSerif", Font.BOLD, 15));
-        topBox.add(title);
+        JButton collapseBtn = new JButton("◀");
+        collapseBtn.setToolTipText("Minimize Sources Panel");
+        collapseBtn.addActionListener(e -> toggleSourcesColumn());
+        headerRow.add(title, BorderLayout.WEST);
+        headerRow.add(collapseBtn, BorderLayout.EAST);
+        topBox.add(headerRow);
 
         JButton addSourcesBtn = new JButton("+ Add sources (F02)");
-        addSourcesBtn.setBackground(new Color(59, 130, 246));
+        addSourcesBtn.setBackground(new Color(37, 99, 235));
         addSourcesBtn.setForeground(Color.WHITE);
         addSourcesBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
         addSourcesBtn.addActionListener(e -> showAddSourcesDialog());
@@ -348,7 +377,7 @@ public class StudyWorkspacePanel extends JPanel {
         topBox.add(webSearchToggle);
 
         JPanel selectAllRow = new JPanel(new BorderLayout());
-        selectAllRow.add(new JLabel("Notebook Sources:"), BorderLayout.WEST);
+        selectAllRow.add(new JLabel("Active Files:"), BorderLayout.WEST);
         selectAllSourcesCheck.setHorizontalTextPosition(SwingConstants.LEFT);
         selectAllSourcesCheck.addActionListener(e -> {
             NotebookState nb = currentNotebook();
@@ -409,7 +438,7 @@ public class StudyWorkspacePanel extends JPanel {
             onStateChanged.run();
 
             JOptionPane.showMessageDialog(this,
-                    "Notebook: " + activeSubjectId
+                    "Subject: " + activeSubjectId
                             + "\nImported Files: " + ing.getImportedFileNames()
                             + "\nNew Chunks Indexed: " + ing.getTotalChunksCreated()
                             + "\nSkipped Files: " + ing.getSkippedFiles(),
@@ -453,19 +482,24 @@ public class StudyWorkspacePanel extends JPanel {
         int totalCount = facade.getSubjectSources(activeSubjectId).size();
         selectAllSourcesCheck.setSelected(totalCount > 0 && checkedCount == totalCount);
         sourceCountPill.setText(checkedCount + " of " + totalCount + (totalCount == 1 ? " source" : " sources"));
-        importedDocsLabel.setText("Active Notebook (" + activeSubjectId + "): " + checkedCount + "/" + totalCount + " sources active ");
+        importedDocsLabel.setText("Active Subject (" + activeSubjectId + "): " + checkedCount + "/" + totalCount + " sources active ");
     }
 
+    // =========================================================================
+    // CENTER COLUMN: TWO-ROW NON-OVERLAPPING CHAT HEADER (Fixes image_8cddf3.png)
+    // =========================================================================
     private JPanel buildCenterChatColumn() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1, true),
-                new EmptyBorder(12, 14, 12, 14)
+                new EmptyBorder(10, 14, 10, 14)
         ));
 
-        JPanel chatHeader = new JPanel(new BorderLayout(6, 0));
-        JPanel leftThreadBox = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        leftThreadBox.add(new JLabel("Thread:"));
+        // 2-Row Header prevents button collision on any window size!
+        JPanel chatHeader = new JPanel(new GridLayout(2, 1, 0, 4));
+
+        JPanel row1 = new JPanel(new BorderLayout(8, 0));
+        row1.add(new JLabel("Thread:"), BorderLayout.WEST);
         chatThreadSelector.addActionListener(e -> {
             if (updatingThreadCombo) return;
             int idx = chatThreadSelector.getSelectedIndex();
@@ -475,8 +509,9 @@ public class StudyWorkspacePanel extends JPanel {
                 chatTranscriptArea.setText(nb.activeThread().transcript.toString());
             }
         });
-        leftThreadBox.add(chatThreadSelector);
+        row1.add(chatThreadSelector, BorderLayout.CENTER);
 
+        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         JButton newThreadBtn = new JButton("+ New Chat");
         newThreadBtn.addActionListener(e -> {
             NotebookState nb = currentNotebook();
@@ -489,20 +524,19 @@ public class StudyWorkspacePanel extends JPanel {
                 refreshChatThreadSelectorForActiveNotebook();
             }
         });
-        leftThreadBox.add(newThreadBtn);
 
-        JPanel rightChatBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         JButton pinToNoteBtn = new JButton("📌 Save to Note");
         pinToNoteBtn.addActionListener(e -> pinLastResponseToStudioNote());
 
         JButton viewCitationsBtn = new JButton("Citations (F04)");
         viewCitationsBtn.addActionListener(e -> showSourceCitationsPopup());
 
-        rightChatBtns.add(pinToNoteBtn);
-        rightChatBtns.add(viewCitationsBtn);
+        row2.add(newThreadBtn);
+        row2.add(pinToNoteBtn);
+        row2.add(viewCitationsBtn);
 
-        chatHeader.add(leftThreadBox, BorderLayout.WEST);
-        chatHeader.add(rightChatBtns, BorderLayout.EAST);
+        chatHeader.add(row1);
+        chatHeader.add(row2);
         panel.add(chatHeader, BorderLayout.NORTH);
 
         chatTranscriptArea.setEditable(false);
@@ -521,7 +555,7 @@ public class StudyWorkspacePanel extends JPanel {
         rightPromptControls.add(sourceCountPill);
 
         JButton sendBtn = new JButton("Send ➤");
-        sendBtn.setBackground(new Color(59, 130, 246));
+        sendBtn.setBackground(new Color(37, 99, 235));
         sendBtn.setForeground(Color.WHITE);
         sendBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
 
@@ -637,16 +671,19 @@ public class StudyWorkspacePanel extends JPanel {
         JOptionPane.showMessageDialog(this, new JScrollPane(area), "F04 Source Citations", JOptionPane.INFORMATION_MESSAGE);
     }
 
+    // =========================================================================
+    // RIGHT COLUMN: STUDIO PANEL (With Maximize Buttons on Flashcards, Quiz & Code Lab)
+    // =========================================================================
     private JPanel buildRightStudioColumn() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1, true),
-                new EmptyBorder(12, 12, 12, 12)
+                new EmptyBorder(10, 12, 10, 12)
         ));
         panel.setPreferredSize(new Dimension(380, 600));
 
         JPanel studioTop = new JPanel(new BorderLayout(0, 8));
-        JLabel studioTitle = new JLabel("Studio");
+        JLabel studioTitle = new JLabel("Study Tools & Library");
         studioTitle.setFont(new Font("SansSerif", Font.BOLD, 15));
         studioTop.add(studioTitle, BorderLayout.NORTH);
 
@@ -669,7 +706,7 @@ public class StudyWorkspacePanel extends JPanel {
         panel.add(studioTop, BorderLayout.NORTH);
 
         JPanel libraryBox = new JPanel(new BorderLayout(4, 4));
-        libraryBox.setBorder(BorderFactory.createTitledBorder("Saved Studio Library (Click to open)"));
+        libraryBox.setBorder(BorderFactory.createTitledBorder("Saved Course Items (Click to open)"));
 
         studioJList.setFont(new Font("SansSerif", Font.PLAIN, 12));
         studioJList.addListSelectionListener(e -> {
@@ -704,7 +741,7 @@ public class StudyWorkspacePanel extends JPanel {
         studioViewerContainer.add(buildSessionStudioSubPanel(), "SESSION");
 
         JSplitPane studioSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, libraryBox, studioViewerContainer);
-        studioSplit.setDividerLocation(165);
+        studioSplit.setDividerLocation(160);
 
         panel.add(studioSplit, BorderLayout.CENTER);
         return panel;
@@ -736,7 +773,7 @@ public class StudyWorkspacePanel extends JPanel {
         form.add(new JLabel(checkedCount + " checked source(s)"));
 
         JPanel topicPanel = new JPanel(new BorderLayout(4, 4));
-        topicPanel.add(new JLabel("What should the topic be? (Optional focus prompt):"), BorderLayout.NORTH);
+        topicPanel.add(new JLabel("Custom Topic Focus (Optional):"), BorderLayout.NORTH);
         topicPanel.add(new JScrollPane(topicPromptArea), BorderLayout.CENTER);
 
         modal.add(form, BorderLayout.NORTH);
@@ -809,7 +846,7 @@ public class StudyWorkspacePanel extends JPanel {
         form.add(new JLabel(checkedCount + " checked source(s)"));
 
         JPanel topicPanel = new JPanel(new BorderLayout(4, 4));
-        topicPanel.add(new JLabel("What should the topic be? (Optional focus prompt):"), BorderLayout.NORTH);
+        topicPanel.add(new JLabel("Custom Topic Focus (Optional):"), BorderLayout.NORTH);
         topicPanel.add(new JScrollPane(topicPromptArea), BorderLayout.CENTER);
 
         modal.add(form, BorderLayout.NORTH);
@@ -913,7 +950,6 @@ public class StudyWorkspacePanel extends JPanel {
         topRow.add(flashcardCounterLabel, BorderLayout.CENTER);
 
         JButton maximizeBtn = new JButton("⤢ Maximize");
-        maximizeBtn.setToolTipText("Open in full-screen distraction-free Flashcard Focus View");
         maximizeBtn.addActionListener(e -> {
             NotebookState nb = currentNotebook();
             if (nb.activeDeck == null || nb.activeDeck.isEmpty()) {
@@ -1006,7 +1042,7 @@ public class StudyWorkspacePanel extends JPanel {
             if (currentlyEditingNote != null) {
                 currentlyEditingNote.noteContent = noteEditorArea.getText();
                 onStateChanged.run();
-                JOptionPane.showMessageDialog(this, "Note saved to Studio Library!");
+                JOptionPane.showMessageDialog(this, "Note saved!");
             }
         });
         top.add(noteTitleField, BorderLayout.CENTER);
@@ -1023,12 +1059,52 @@ public class StudyWorkspacePanel extends JPanel {
         JPanel p = new JPanel(new BorderLayout(6, 6));
         p.setBorder(BorderFactory.createTitledBorder("F07 & F08: Coding Practice & AI Grader"));
 
-        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
-        top.add(codingTopicField);
+        // 2-Row Header guarantees '⤢ Maximize' is ALWAYS visible even when Sources is open!
+        JPanel topContainer = new JPanel(new GridLayout(2, 1, 4, 4));
+
+        JPanel row1 = new JPanel(new BorderLayout(6, 0));
+        row1.add(new JLabel("Topic:"), BorderLayout.WEST);
+        row1.add(codingTopicField, BorderLayout.CENTER);
+
+        JPanel row2 = new JPanel(new GridLayout(1, 3, 6, 0));
         JButton genBtn = new JButton("F07: Problem");
         JButton gradeBtn = new JButton("F08: Grade");
-        top.add(genBtn);
-        top.add(gradeBtn);
+        JButton maxCodeBtn = new JButton("⤢ Maximize");
+        maxCodeBtn.setToolTipText("Open full-screen side-by-side Code Lab IDE");
+        row2.add(genBtn);
+        row2.add(gradeBtn);
+        row2.add(maxCodeBtn);
+
+        topContainer.add(row1);
+        topContainer.add(row2);
+
+        // Tabbed view inside compact sidebar eliminates the 3 squished vertical boxes
+        JTabbedPane codeSubTabs = new JTabbedPane();
+        problemStatementArea.setEditable(false);
+        problemStatementArea.setLineWrap(true);
+        problemStatementArea.setWrapStyleWord(true);
+        problemStatementArea.setText("Click 'F07: Problem' above to synthesize a coding problem, or click '⤢ Maximize' for full-screen view.");
+
+        codeEditorArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        codeEditorArea.setText("// Click 'F07: Problem' to load starter code here...");
+
+        gradeFeedbackArea.setEditable(false);
+        gradeFeedbackArea.setLineWrap(true);
+        gradeFeedbackArea.setWrapStyleWord(true);
+        gradeFeedbackArea.setText("Submit your code using 'F08: Grade' to view your score and hints here.");
+
+        codeSubTabs.addTab("1. Problem", new JScrollPane(problemStatementArea));
+        codeSubTabs.addTab("2. Code Editor", new JScrollPane(codeEditorArea));
+        codeSubTabs.addTab("3. Feedback", new JScrollPane(gradeFeedbackArea));
+
+        maxCodeBtn.addActionListener(e -> {
+            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            MaximizedStudyDialog.showCodeLabModal(
+                    parentFrame, activeSubjectId, facade,
+                    codingTopicField, problemStatementArea, codeEditorArea, gradeFeedbackArea,
+                    onStateChanged
+            );
+        });
 
         genBtn.addActionListener(e -> {
             String topic = codingTopicField.getText().trim();
@@ -1047,8 +1123,9 @@ public class StudyWorkspacePanel extends JPanel {
                     setBusyState(false, "");
                     try {
                         nb.latestProblem = get();
-                        problemStatementArea.setText(nb.latestProblem.getProblemTitle() + "\n" + nb.latestProblem.getDescription());
+                        problemStatementArea.setText(nb.latestProblem.getProblemTitle() + "\n\n" + nb.latestProblem.getDescription());
                         codeEditorArea.setText(nb.latestProblem.getStarterCode());
+                        codeSubTabs.setSelectedIndex(0);
                         onStateChanged.run();
                     } catch (Exception ex) {
                         Throwable c = ex.getCause() != null ? ex.getCause() : ex;
@@ -1078,7 +1155,10 @@ public class StudyWorkspacePanel extends JPanel {
                     setBusyState(false, "");
                     try {
                         GradeEvaluation eval = get();
-                        gradeFeedbackArea.setText("Score: " + eval.getScore() + "/100\n" + eval.getFeedback() + "\nHints: " + eval.getHints());
+                        gradeFeedbackArea.setText("SCORE: " + eval.getScore() + " / 100\n\n"
+                                + eval.getFeedback() + "\n\nQUALITATIVE HINTS:\n• "
+                                + String.join("\n• ", eval.getHints()));
+                        codeSubTabs.setSelectedIndex(2);
                     } catch (Exception ex) {
                         Throwable c = ex.getCause() != null ? ex.getCause() : ex;
                         JOptionPane.showMessageDialog(StudyWorkspacePanel.this, c.getMessage(), "F08 Guard", JOptionPane.WARNING_MESSAGE);
@@ -1087,21 +1167,8 @@ public class StudyWorkspacePanel extends JPanel {
             }.execute();
         });
 
-        problemStatementArea.setEditable(false);
-        problemStatementArea.setLineWrap(true);
-        problemStatementArea.setWrapStyleWord(true);
-        codeEditorArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        gradeFeedbackArea.setEditable(false);
-        gradeFeedbackArea.setLineWrap(true);
-        gradeFeedbackArea.setWrapStyleWord(true);
-
-        JPanel stack = new JPanel(new GridLayout(3, 1, 4, 4));
-        stack.add(new JScrollPane(problemStatementArea));
-        stack.add(new JScrollPane(codeEditorArea));
-        stack.add(new JScrollPane(gradeFeedbackArea));
-
-        p.add(top, BorderLayout.NORTH);
-        p.add(stack, BorderLayout.CENTER);
+        p.add(topContainer, BorderLayout.NORTH);
+        p.add(codeSubTabs, BorderLayout.CENTER);
         return p;
     }
 
@@ -1109,11 +1176,12 @@ public class StudyWorkspacePanel extends JPanel {
         JPanel p = new JPanel(new BorderLayout(6, 6));
         p.setBorder(BorderFactory.createTitledBorder("F09 & F10: Guided Quiz Session & Analytics"));
 
-        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        // Equal-width grid ensures '⤢ Maximize' never gets pushed off-screen
+        JPanel top = new JPanel(new GridLayout(1, 4, 4, 0));
         JButton submitBtn = new JButton("Submit");
         JButton undoBtn = new JButton("Undo (F09)");
-        JButton maximizeQuizBtn = new JButton("⤢ Maximize Quiz");
-        maximizeQuizBtn.setToolTipText("Open in full-screen Quiz Focus View");
+        JButton maximizeQuizBtn = new JButton("⤢ Maximize");
+        sessionTimerLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
         top.add(submitBtn);
         top.add(undoBtn);
@@ -1123,7 +1191,7 @@ public class StudyWorkspacePanel extends JPanel {
         maximizeQuizBtn.addActionListener(e -> {
             NotebookState nb = currentNotebook();
             if (nb.activeQuiz == null) {
-                JOptionPane.showMessageDialog(this, "Click '📝 + Quiz (F06)' above or select a saved Quiz in the Studio Library first.");
+                JOptionPane.showMessageDialog(this, "Click '📝 + Quiz (F06)' above or select a saved Quiz first.");
                 return;
             }
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
@@ -1140,7 +1208,7 @@ public class StudyWorkspacePanel extends JPanel {
         submitBtn.addActionListener(e -> {
             StudySession s = facade.getActiveStudySession();
             if (s == null || s.isCompleted()) {
-                JOptionPane.showMessageDialog(this, "Click '📝 + Quiz (F06)' above or click any saved Quiz in the Studio Library to start!");
+                JOptionPane.showMessageDialog(this, "Click '📝 + Quiz (F06)' above or click a saved Quiz to start!");
                 return;
             }
             int sel = 0;
@@ -1164,7 +1232,7 @@ public class StudyWorkspacePanel extends JPanel {
         activeQuestionArea.setEditable(false);
         activeQuestionArea.setLineWrap(true);
         activeQuestionArea.setWrapStyleWord(true);
-        activeQuestionArea.setText("Click '📝 + Quiz (F06)' above to generate a quiz, or click '⤢ Maximize Quiz'.");
+        activeQuestionArea.setText("Click '📝 + Quiz (F06)' above to generate a quiz, or click '⤢ Maximize'.");
         qPanel.add(new JScrollPane(activeQuestionArea), BorderLayout.CENTER);
 
         JPanel radioGrid = new JPanel(new GridLayout(4, 1, 2, 2));
@@ -1286,7 +1354,7 @@ public class StudyWorkspacePanel extends JPanel {
         if (s.isCompleted()) {
             if (pomodoroTimer != null) pomodoroTimer.stop();
             activeQuestionArea.setText("🎉 Session Complete! Score: " + s.getCurrentScore() + "/" + s.getTotalQuestions()
-                    + "\n(Click 'Undo (F09)' to revert last answer, or select another Quiz in Studio Library)");
+                    + "\n(Click 'Undo (F09)' to revert last answer, or select another Quiz)");
             return;
         }
         QuizQuestion q = s.getCurrentQuestion();

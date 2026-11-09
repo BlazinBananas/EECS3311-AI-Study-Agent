@@ -54,7 +54,7 @@ public class MainGUI extends JFrame {
     private ScheduleCalendarPanel scheduleCalendarPanel;
 
     public MainGUI(StudyAgentFacade facade) {
-        super("Gemini Study Notebook — EECS 3311 AI Study Agent");
+        super("StudyAgent Workbench — EECS 3311 AI Study & Learning Agent");
         this.facade = facade;
 
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -148,7 +148,7 @@ public class MainGUI extends JFrame {
         ));
 
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
-        JLabel brand = new JLabel("✨ Study Notebook");
+        JLabel brand = new JLabel("🎓 StudyAgent Workbench");
         brand.setFont(new Font("SansSerif", Font.BOLD, 18));
         left.add(brand);
 
