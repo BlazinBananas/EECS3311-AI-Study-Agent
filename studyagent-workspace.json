@@ -1,0 +1,596 @@
+{
+  "notebooks": [
+    {
+      "id": "EECS3311",
+      "title": "EECS 3311 - Software Design",
+      "icon": "💻",
+      "createdDate": "6 Nov 2026"
+    }
+  ],
+  "notebookStates": {
+    "EECS3311": {
+      "subjectId": "EECS3311",
+      "displayTitle": "EECS 3311 - Software Design",
+      "chatThreads": [
+        {
+          "title": "Chat 1 — General Study",
+          "transcript": "\u003d\u003d\u003d EECS 3311 - Software Design Notebook \u003d\u003d\u003d\n• Click \u0027+ Add sources (F02)\u0027 on the left to import course files.\n• Check or uncheck individual files in the Sources list to control which files the AI uses.\n• Use the Studio panel on the right to generate Flashcards, Quizzes, and Pinned Notes (click \u0027⤢ Maximize\u0027 for full-screen focus mode!).\n\n[F02 Sources Added to EECS3311]\n  ✓ Imported: [EECS3311-0-Admin.pdf, EECS3311-07-Structural Patterns.pdf, EECS3311-08-Behavioral Patterns.pdf, EECS3311-09-Software-Process Patterns.pdf, EECS3311-1- OOP Design.pdf, EECS3311-10-Software Architecture.pdf, EECS3311-11-TDD.pdf, EECS3311-11-Write-Good-Test Cases.pdf, EECS3311-12-InputSpace.pdf, EECS3311-14-DBC.pdf, EECS3311-14-Test Automation.pdf, EECS3311-15-DbC-with-JML.pdf, EECS3311-2-Junit.pdf, EECS3311-3-UML.pdf, EECS3311-4-UML-II.pdf, EECS3311-5-SOLID.pdf, EECS3311-6-Design Pattern-Creational.pdf, EECS3311_F26_syllabus.pdf, Java_SDK_Design_Patterns.pdf] (36 chunks)\n  ⚠ Skipped: []\n\n────────────────────────────────────────────────────\nYou: What is the Liskov Substitution Principle?\n\n[Offline Fallback — Local LLM server not reachable (null). Start LM Studio Server on port 1234 for live inference.]\n\nRetrieved Context Summary:\n• [WEB_CONTEXT] Liskov substitution principle (https://en.wikipedia.org/wiki/Liskov_substitution_principle): The Liskov substitution principle (LSP) is a particular definition of a subtyping relation, called strong behavioral subtyping, that was initially introduced\n\n• [WEB_CONTEXT] Open–closed principle (https://en.wikipedia.org/wiki/Open%E2%80%93closed_principle): modification\"; that is, such an entity can allow its behaviour to be extended without modifying its source code. The name open–closed principle has been used\n\n• [WEB_CONTEXT] Single-responsibility principle (https://en.wikipedia.org/wiki/Single-responsibility_principle): the single-responsibility principle (SRP) is a software design maxim stating that \"a module should be responsible to one, and only one, actor.\" The term\n\n🌐 [F03 Live Web Citations]:\n  • Liskov substitution principle (https://en.wikipedia.org/wiki/Liskov_substitution_principle)\n  • Open–closed principle (https://en.wikipedia.org/wiki/Open%E2%80%93closed_principle)\n  • Single-responsibility principle (https://en.wikipedia.org/wiki/Single-responsibility_principle)\n"
+        }
+      ],
+      "activeThreadIndex": 0,
+      "checkedSources": [
+        "EECS3311-0-Admin.pdf",
+        "EECS3311-07-Structural Patterns.pdf",
+        "EECS3311-08-Behavioral Patterns.pdf",
+        "EECS3311-1- OOP Design.pdf",
+        "EECS3311-10-Software Architecture.pdf",
+        "EECS3311-11-TDD.pdf",
+        "EECS3311-11-Write-Good-Test Cases.pdf",
+        "EECS3311-12-InputSpace.pdf",
+        "EECS3311-14-DBC.pdf",
+        "EECS3311-14-Test Automation.pdf",
+        "EECS3311-15-DbC-with-JML.pdf",
+        "EECS3311-2-Junit.pdf",
+        "EECS3311-3-UML.pdf",
+        "EECS3311-4-UML-II.pdf",
+        "EECS3311-5-SOLID.pdf",
+        "EECS3311-6-Design Pattern-Creational.pdf",
+        "EECS3311_F26_syllabus.pdf",
+        "Java_SDK_Design_Patterns.pdf",
+        "EECS3311-09-Software-Process Patterns.pdf"
+      ],
+      "studioItems": [
+        {
+          "type": "QUIZ",
+          "title": "EECS3311 Quiz 3",
+          "subtitle": "19 sources • Advanced",
+          "quiz": {
+            "id": "e4ae6ec0-62e5-4079-b7d7-488ce03d9bd0",
+            "subjectId": "EECS3311",
+            "difficulty": "Advanced",
+            "questions": [
+              {
+                "prompt": "Which of the following is NOT a core principle of Design by Contract (DbC)?",
+                "options": [
+                  "Preconditions",
+                  "Postconditions",
+                  "Invariants",
+                  "Assertions"
+                ],
+                "correctAnswerIndex": 3
+              },
+              {
+                "prompt": "What is the primary purpose of Test-Driven Development (TDD) as described in the course materials?",
+                "options": [
+                  "Writing code first and then tests",
+                  "Writing tests before writing the actual code",
+                  "Focusing solely on unit testing",
+                  "Prioritizing code performance over functionality"
+                ],
+                "correctAnswerIndex": 1
+              },
+              {
+                "prompt": "Which technique involves partitioning input space into valid and invalid classes for testing?",
+                "options": [
+                  "Equivalence Class Partitioning",
+                  "Boundary Value Analysis",
+                  "State Transition Testing",
+                  "Path Coverage"
+                ],
+                "correctAnswerIndex": 0
+              },
+              {
+                "prompt": "In the context of UML, which diagram is used to represent the static structure of a system?",
+                "options": [
+                  "Sequence Diagram",
+                  "Class Diagram",
+                  "Use Case Diagram",
+                  "Activity Diagram"
+                ],
+                "correctAnswerIndex": 1
+              },
+              {
+                "prompt": "Which SOLID principle emphasizes that objects should be open for extension but closed for modification?",
+                "options": [
+                  "Single Responsibility",
+                  "Open/Closed",
+                  "Liskov Substitution",
+                  "Interface Segregation"
+                ],
+                "correctAnswerIndex": 1
+              },
+              {
+                "prompt": "The Composite Design Pattern is best suited for scenarios where:",
+                "options": [
+                  "You need to represent part-whole hierarchies of objects",
+                  "You want to enforce strict inheritance hierarchies",
+                  "You require all components to be leaf nodes",
+                  "You prefer procedural over object-oriented design"
+                ],
+                "correctAnswerIndex": 0
+              }
+            ]
+          }
+        },
+        {
+          "type": "QUIZ",
+          "title": "EECS3311 Quiz 2",
+          "subtitle": "19 sources • Intermediate",
+          "quiz": {
+            "id": "56f2b1e6-160e-413d-a1c3-9f2c818e5811",
+            "subjectId": "EECS3311",
+            "difficulty": "Intermediate",
+            "questions": [
+              {
+                "prompt": "Which SOLID principle states that software entities should be open for extension but closed for modification?",
+                "options": [
+                  "Open/Closed Principle (OCP)",
+                  "Single Responsibility Principle (SRP)",
+                  "Interface Segregation Principle (ISP)",
+                  "Liskov Substitution Principle (LSP)"
+                ],
+                "correctAnswerIndex": 0
+              },
+              {
+                "prompt": "In Design by Contract (DbC), who is obligated to satisfy a method\u0027s precondition?",
+                "options": [
+                  "The Client (Caller)",
+                  "The Supplier (Callee)",
+                  "The Observer",
+                  "The Garbage Collector"
+                ],
+                "correctAnswerIndex": 0
+              }
+            ]
+          }
+        },
+        {
+          "type": "FLASHCARDS",
+          "title": "EECS3311 Flashcards 1",
+          "subtitle": "19 sources • 3 cards",
+          "deck": [
+            {
+              "id": "09c27340-e5a0-472a-a795-c5667f25fa70",
+              "subjectId": "EECS3311",
+              "term": "Single Responsibility Principle (SRP)",
+              "definition": "Every class should have only one responsibility and one reason to change."
+            },
+            {
+              "id": "5a702f69-7be7-4187-bf05-f258482417c9",
+              "subjectId": "EECS3311",
+              "term": "Liskov Substitution Principle (LSP)",
+              "definition": "Subtypes must be substitutable for their base types without altering program correctness."
+            },
+            {
+              "id": "2ce873a6-3fed-4ad2-8a1b-a7fb12f77734",
+              "subjectId": "EECS3311",
+              "term": "Strategy Pattern",
+              "definition": "Encapsulates interchangeable algorithms behind a common interface."
+            }
+          ]
+        }
+      ],
+      "activeDeck": [
+        {
+          "id": "09c27340-e5a0-472a-a795-c5667f25fa70",
+          "subjectId": "EECS3311",
+          "term": "Single Responsibility Principle (SRP)",
+          "definition": "Every class should have only one responsibility and one reason to change."
+        },
+        {
+          "id": "5a702f69-7be7-4187-bf05-f258482417c9",
+          "subjectId": "EECS3311",
+          "term": "Liskov Substitution Principle (LSP)",
+          "definition": "Subtypes must be substitutable for their base types without altering program correctness."
+        },
+        {
+          "id": "2ce873a6-3fed-4ad2-8a1b-a7fb12f77734",
+          "subjectId": "EECS3311",
+          "term": "Strategy Pattern",
+          "definition": "Encapsulates interchangeable algorithms behind a common interface."
+        }
+      ],
+      "activeDeckTitle": "EECS3311 Flashcards 1",
+      "activeDeckSubtitle": "19 sources • 3 cards",
+      "cardIndex": 0,
+      "showDefinition": false,
+      "activeQuiz": {
+        "id": "exam-1794185452514",
+        "subjectId": "EECS3311",
+        "difficulty": "Cumulative (2 quizzes)",
+        "questions": [
+          {
+            "prompt": "Which of the following is NOT a core principle of Design by Contract (DbC)?",
+            "options": [
+              "Preconditions",
+              "Postconditions",
+              "Invariants",
+              "Assertions"
+            ],
+            "correctAnswerIndex": 3
+          },
+          {
+            "prompt": "What is the primary purpose of Test-Driven Development (TDD) as described in the course materials?",
+            "options": [
+              "Writing code first and then tests",
+              "Writing tests before writing the actual code",
+              "Focusing solely on unit testing",
+              "Prioritizing code performance over functionality"
+            ],
+            "correctAnswerIndex": 1
+          },
+          {
+            "prompt": "Which technique involves partitioning input space into valid and invalid classes for testing?",
+            "options": [
+              "Equivalence Class Partitioning",
+              "Boundary Value Analysis",
+              "State Transition Testing",
+              "Path Coverage"
+            ],
+            "correctAnswerIndex": 0
+          },
+          {
+            "prompt": "In the context of UML, which diagram is used to represent the static structure of a system?",
+            "options": [
+              "Sequence Diagram",
+              "Class Diagram",
+              "Use Case Diagram",
+              "Activity Diagram"
+            ],
+            "correctAnswerIndex": 1
+          },
+          {
+            "prompt": "Which SOLID principle emphasizes that objects should be open for extension but closed for modification?",
+            "options": [
+              "Single Responsibility",
+              "Open/Closed",
+              "Liskov Substitution",
+              "Interface Segregation"
+            ],
+            "correctAnswerIndex": 1
+          },
+          {
+            "prompt": "The Composite Design Pattern is best suited for scenarios where:",
+            "options": [
+              "You need to represent part-whole hierarchies of objects",
+              "You want to enforce strict inheritance hierarchies",
+              "You require all components to be leaf nodes",
+              "You prefer procedural over object-oriented design"
+            ],
+            "correctAnswerIndex": 0
+          },
+          {
+            "prompt": "Which SOLID principle states that software entities should be open for extension but closed for modification?",
+            "options": [
+              "Open/Closed Principle (OCP)",
+              "Single Responsibility Principle (SRP)",
+              "Interface Segregation Principle (ISP)",
+              "Liskov Substitution Principle (LSP)"
+            ],
+            "correctAnswerIndex": 0
+          },
+          {
+            "prompt": "In Design by Contract (DbC), who is obligated to satisfy a method\u0027s precondition?",
+            "options": [
+              "The Client (Caller)",
+              "The Supplier (Callee)",
+              "The Observer",
+              "The Garbage Collector"
+            ],
+            "correctAnswerIndex": 0
+          }
+        ]
+      },
+      "activeQuizTitle": "EECS3311 Cumulative Exam (8 Qs)",
+      "activeQuizSubtitle": "Merged 2 quizzes • Time Limit: 12:00 (90s/Q)",
+      "latestProblem": {
+        "problemTitle": "CS Practice Problem: Java Strategy Pattern",
+        "description": "[Offline Fallback — Start LM Studio Server on port 1234] Processed task: Create a concise Java programming practice problem statement for the topic: Java Strategy Pattern",
+        "starterCode": "public class Solution {\n    // TODO: Implement Java Strategy Pattern\n    public String execute(String input) {\n        if (input \u003d\u003d null || input.isBlank()) {\n            throw new IllegalArgumentException(\"Precondition violated\");\n        }\n        return \"Processed: \" + input;\n    }\n}",
+        "constraints": "Adhere to SOLID \u0026 DbC principles; validate all input preconditions."
+      }
+    }
+  },
+  "ingestedChunks": {
+    "EECS3311": [
+      {
+        "sourceFileName": "EECS3311-0-Admin.pdf",
+        "subjectId": "EECS3311",
+        "text": "Admin \r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nWarning: Students enrolled in EECS 3311 Section A \r\nshould expect to incur some LLM token costs as part of \r\nthe course\r\n• Course project is about building, verifying, and \r\ntesting agents\r\n• LLM tokens are becoming a new basic resource \r\nfor humans, much like computers became \r\nessential 30 years ago. Please plan to purchase \r\nyour own tokens to complete the coursewo",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-07-Structural Patterns.pdf",
+        "subjectId": "EECS3311",
+        "text": "Design Patterns\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on SOEN\r\n344 at Concordia, SE463 at UW, SENG321 at UVic,\r\nCSE331 at University of Washington and previous\r\nEECS3311 offerings:\r\n• Nikolaos Tsantalis, Jo Atlee, Marty Stepp, Mike \r\nGodfrey, Jonathan S. Ostroff, M. Ernst, S. Reges, D. Notkin, \r\nR. Mercer, Davor Svetinovic, Jack Jiang, Jackie Wang\r\n▪ Structu",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-07-Structural Patterns.pdf",
+        "subjectId": "EECS3311",
+        "text": "Pattern: Composite\r\nThe Composite Design pattern allows a client object to treat both\r\nsingle components and collections of components identically.\r\nComposite patterns are often used to represent recursive data\r\nstructures. The recursive nature of the Composite structure naturally\r\ngives way to recursive code to process that structure.\r\nUse the Composite pattern when:\r\n▪ You want to represent part-whole hierarchies of objects.\r\n▪ You want clients",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-07-Structural Patterns.pdf",
+        "subjectId": "EECS3311",
+        "text": "VisualComponent vc \u003d new TextView(“xxx\");\r\nif (enabledBorder3D)\r\nvc \u003d new ThreeDBorder(vc)\r\nif (enabledScrollBarVert)\r\nvc \u003d new Vert(vc)\r\nvc.draw();\r\nvc.resize();\r\nVert.draw()\r\n↓\r\nThreeDBorder.draw()\r\n↓\r\nTextView.draw()\r\n↓\r\nThreeDBorder adds 3D border\r\n↓\r\nVert adds vertical scrollbar\r\nVisualComponent view2  \u003d new \r\nVerticalScrollBar(\r\nnew FancyBorder(\r\nnew TextView()\r\n)\r\n);\r\nview2.draw();\r\n// TextView + 3D Border\r\n//          + Horizontal ScrollB",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-07-Structural Patterns.pdf",
+        "subjectId": "EECS3311",
+        "text": "Decorator – Class Diagram\r\nDecorator - Comments\r\n• This Design Pattern provides enough design flexibility because we \r\ncan change the behavior of a Decorator during the program \r\nexecution and we do not need to re-compile the program\r\n• As the Decorator class has the same interface with the object it \r\nwraps, an object of this type of Decorator presents to any client \r\ncode the same  view that would present the object that is “wrapped\" \r\nby the D",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-07-Structural Patterns.pdf",
+        "subjectId": "EECS3311",
+        "text": "Exercise\r\nPattern: Flyweight\r\nFlyweight – Intent\r\n• This pattern is used to reduce the memory footprint. It can also \r\nimprove performance in applications where object instantiation is \r\nexpensive.\r\n• Simply put, the flyweight pattern is based on a factory which \r\nrecycles created objects by storing them after creation. Each \r\ntime an object is requested, the factory looks up the object in order \r\nto check if it\u0027s already been created. If it has,",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-08-Behavioral Patterns.pdf",
+        "subjectId": "EECS3311",
+        "text": "Design Patterns\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on SOEN 344 at\r\nConcordia, SE463 at UW, SENG321 at UVic, CSE331 at\r\nUniversity of Washington and previous EECS3311 offerings:\r\n• Nikolaos Tsantalis, Jo Atlee, Marty Stepp, Mike Godfrey, \r\nJonathan S. Ostroff, M. Ernst, S. Reges, D. Notkin, R. \r\nMercer, Davor Svetinovic, Jack Jiang, Jackie Wang\r\nOutlines\r\n",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-08-Behavioral Patterns.pdf",
+        "subjectId": "EECS3311",
+        "text": "// Visitor interface\r\ninterface ASTVisitor {\r\nvoid visit(Variable node);\r\nvoid visit(BinaryExpression node);\r\nvoid visit(Assignment node);\r\n}\r\n// Base AST node\r\ninterface ASTNode {\r\nvoid accept(ASTVisitor visitor);\r\n}\r\nclass Assignment implements ASTNode {\r\nVariable variable;\r\nASTNode expression;\r\nAssignment(Variable variable, ASTNode expression) {\r\nthis.variable \u003d variable;\r\nthis.expression \u003d expression;\r\n}\r\npublic void accept(ASTVisitor visitor",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-09-Software-Process Patterns.pdf",
+        "subjectId": "EECS3311",
+        "text": "Software Process Models\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nWhat is a process?\r\nWhat is a process?\r\nA process is a set of activities that\r\ninteract to produce a result\r\nhttps://en.wikipedia.org/wiki/Process\r\nWhat is a process?\r\nA process is a set of activities that\r\ninteract to produce a result.\r\nhttps://en.wikipedia.org/wiki/Process\r\ndesign, \r\nbuild framework,\r\nmake essential components,\r\npolish, \r\npaint,\r\nas",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-09-Software-Process Patterns.pdf",
+        "subjectId": "EECS3311",
+        "text": "Extreme Programming (XP)\r\n• Individuals and interactions\r\n• Over processes and tools\r\n• Working software\r\n• Over documentation\r\n• Customer collaboration\r\n• Over contract negotiation\r\n• Responding to change\r\n• Over following a plan\r\n• software engineering practices \u003e \r\nproject management\r\nEmphasises\r\n• Programming in pairs\r\n• Test-driven development (TDD)\r\n• Continuous planning, change, delivery\r\n• Shared project metaphors, coding \r\nstandards and ",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-1- OOP Design.pdf",
+        "subjectId": "EECS3311",
+        "text": "OOP Design Principles\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nOutlines\r\n• Overview of Java\r\n• Java Characteristics\r\n• Process of Run Java Code\r\n• Java Class and API\r\n• Primitive Types\r\n• Java Operators\r\n• Access modifiers\r\n• Java Utils \r\n• OOP Design Principals\r\n• Polymorphism\r\n• Inheritance \r\n• Abstraction\r\n• Generics \r\n• Exception\r\nOverview of Java\r\nReferences\r\n• https://docs.oracle.com/javase/tutorial/\r\n• Offic",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-1- OOP Design.pdf",
+        "subjectId": "EECS3311",
+        "text": "public interface Collection\u003cE\u003e\r\nextends Iterable\u003cE\u003e\r\n• Collection — the root of the collection hierarchy.\r\n• A collection represents a group of objects known as its elements.\r\n• Some types of collections allow duplicate elements, and others do\r\nnot.\r\n• Some are ordered and others are unordered.\r\n• Java platform doesn\u0027t provide any direct implementations of this\r\ninterface but provides implementations of more specific\r\nsubinterfaces, such as Set a",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-10-Software Architecture.pdf",
+        "subjectId": "EECS3311",
+        "text": "Software Architecture\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on SOEN 344 at\r\nConcordia, SE463 at UW, SENG321 at UVic, CSE331 at\r\nUniversity of Washington, CS 3250 at University of Virginia,\r\nECE452 at Rutgers University, and previous EECS3311\r\nofferings:\r\n• Upsorn Praphamontripong, Nikolaos Tsantalis, Jo Atlee, \r\nMarty Stepp, Mike Godfrey, Jonathan S. Ostroff",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-10-Software Architecture.pdf",
+        "subjectId": "EECS3311",
+        "text": "Seminar Management System\r\nPractice: Drawing the component diagram \r\nfor an online shopping system\r\n1. WebStore subsystem contains three components related to online shopping: Search\r\nEngine, Shopping Cart, and Authentication.\r\n• Search Engine component allows to search or browse items by exposing provided\r\ninterface Product Search and uses required interface Search Inventory provided\r\nby Inventory component.\r\n• Shopping Cart component uses Manag",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-11-TDD.pdf",
+        "subjectId": "EECS3311",
+        "text": "EECS 3311\r\nTest Driven Development (TDD)\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on SOEN 344 at\r\nConcordia, SE463 at UW, SENG321 at UVic, CSE331 at\r\nUniversity of Washington, CS 3250 at University of Virginia,\r\nand previous EECS3311 offerings:\r\n• Upsorn Praphamontripong, Nikolaos Tsantalis, Jo Atlee, \r\nMarty Stepp, Mike Godfrey, Jonathan S. Ostroff, M. Ernst, \r\nS. Reges,",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-11-Write-Good-Test Cases.pdf",
+        "subjectId": "EECS3311",
+        "text": "Write Junit Test Cases\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nWhat are the criteria for writing \r\ntest cases?\r\nOutlines\r\n• Control Flow Graphs\r\n• If Statements\r\n• Loop Statements\r\n• Code Coverage\r\n• line-level\r\n• branch-level\r\n• method-level\r\n• Tools to measure coverage\r\n• JaCoCo\r\n• Write Junit Test Cases\r\n• Strategies to write good Junit test cases\r\nControl Flow Graphs\r\n• A CFG models all executions of a method ",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-12-InputSpace.pdf",
+        "subjectId": "EECS3311",
+        "text": "EECS 3311\r\nInput Space\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on SOEN 344 at\r\nConcordia, SE463 at UW, SENG321 at UVic, CSE331 at\r\nUniversity of Washington, CS 3250 at University of Virginia,\r\nand previous EECS3311 offerings:\r\n• Upsorn Praphamontripong, Nikolaos Tsantalis, Jo Atlee, \r\nMarty Stepp, Mike Godfrey, Jonathan S. Ostroff, M. Ernst, \r\nS. Reges, D. Notkin, R. Mer",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-12-InputSpace.pdf",
+        "subjectId": "EECS3311",
+        "text": "Interface-Based –triangle()\r\n• triangle() has one testable function and three integer inputs\r\nCharacteristic b1 b2 b3\r\nq1 \u003d “Relation of Side 1 to 0” greater than 0 equal to 0 less than 0\r\nq2 \u003d “Relation of Side 2 to 0” greater than 0 equal to 0 less than 0\r\nq3 \u003d “Relation of Side 3 to 0” greater than 0 equal to 0 less than 0\r\nPoor Characterization of the Inputs\r\n• A maximum of 3*3*3 \u003d 27 tests\r\n• Some triangles are valid, some are invalid\r\n• Ref",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-14-DBC.pdf",
+        "subjectId": "EECS3311",
+        "text": "Formal specification: \r\nDesign by Contract (DbC)\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on previous\r\nEECS3311 offerings:\r\n• Jonathan S. Ostroff, Jackie Wang, Song W\r\nOutlines\r\n▪ What’s DbC?\r\n▪ DbC with Java\r\n▪ Without tool support\r\n▪ JML support\r\n▪ DbC with Eiffel\r\n▪ Why it’s the best DbC language?\r\n▪ A well-designed language doesn\u0027t always win\r\nDesign By Con",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-14-DBC.pdf",
+        "subjectId": "EECS3311",
+        "text": "Version 2: How Should We Improve it?\r\nVersion 2: How Should We Improve it?\r\nVersion 2: How Should We Improve it?\r\nVersion 3: Added Assertions\r\nto Approximate Class Invariants\r\nVersion 3: Why Better than Version 2?\r\nVersion 3: Why Better than Version 2?\r\nVersion 3: Why Still Not a Good Design?\r\nVersion 3: Why Still Not a Good Design?\r\nVersion 3: Why Still Not a Good Design?\r\nVersion 4: What If the Implementation of \r\nwithdraw is Wrong? (1)\r\nVersio",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-14-Test Automation.pdf",
+        "subjectId": "EECS3311",
+        "text": "Test automation\r\n- Building automatically repeatable test suites\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nWhy Automated Testing?\r\n• Manual testing of all workflows, all fields, all \r\nnegative scenarios is time and money consuming\r\n• Automation does not require human \r\nintervention. You can run automated test \r\nunattended (overnight)\r\n• Automation increases the speed of test execution\r\n• Manual testing can become bo",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-15-DbC-with-JML.pdf",
+        "subjectId": "EECS3311",
+        "text": "Formal specification: \r\nDesign by Contract (DbC)\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on\r\n22C:181@University of Iowa, 11LE13V-1210@University\r\nof Freiburg, and our previous EECS3311 offerings:\r\n• Gary T. Leavens, Jochen Hoenicke, Alexander Nutz , \r\nJonathan S. Ostroff, Jackie Wang, Song Wang\r\nJML – Java Modelling Language\r\n• formal specification language fo",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-15-DbC-with-JML.pdf",
+        "subjectId": "EECS3311",
+        "text": "Exercise: JML specification for \r\narraycopy\r\nExercise: JML specification for \r\narraycopy\r\nRunning JML to check your \r\ncontracts\r\n• Tools: \r\n• https://github.com/OpenJML/OpenJML/releases\r\n• V0.8.51\r\n• Examples:\r\n• https://www.openjml.org/examples/",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-2-Junit.pdf",
+        "subjectId": "EECS3311",
+        "text": "JUnit\r\n• JUnit is a framework for writing/managing tests\r\n• Uses Java features such as annotations and static \r\nimports\r\n• JUnit helps the programmer:\r\n• define and execute tests and test suites\r\n• formalize requirements\r\n• write and debug code\r\n• integrate code and always be ready to release a working version\r\nTerminology\r\n• A unit test is a test of a single class/method\r\n• A test case tests the response of a single method \r\nto a particular set ",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-3-UML.pdf",
+        "subjectId": "EECS3311",
+        "text": "UML (Unified Modeling Language)\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on\r\nSE463 at UW, SENG321 at UVic, 4010-420 at RIT\r\nand previous EECS3311 offerings:\r\n• Jo Atlee, Dan Berry, Daniela Damian, Nancy Day, Mike \r\nGodfrey, Ahmed E. Hassan, Jonathan S. Ostroff, Emad \r\nShihab, Davor Svetinovic, Jack Jiang\r\nWhat is UML?\r\n• A standardized, graphical “modeling lang",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-3-UML.pdf",
+        "subjectId": "EECS3311",
+        "text": "UML diagrams:  use cases\r\n• A use case encodes a typical user interaction with the \r\nsystem.  In particular, it:\r\n• captures some user-visible function.\r\n• achieves some concrete goal for the user.\r\n• A complete set of use cases defines the requirements \r\nfor your system:  \r\n• everything the user can see and would like to do.\r\n• The granularity of your use cases determines the number \r\nof them (for your system).  A clear design depends on \r\nshowi",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-3-UML.pdf",
+        "subjectId": "EECS3311",
+        "text": "Exercise –use case\r\nYou are expected to design the software for an automated teller\r\nmachine (ATM). With the ATM, a user can only withdraw,\r\ntransfer (between users), and deposit cash for this example. Take\r\ncash withdrawal as an example, an ATM accepts a debit card,\r\ninteracts with the user, and verifies the PIN number provided,\r\ncarries out the transaction, dispenses cash, and prints receipts.\r\nATMs communicate with a central computer, which cl",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-3-UML.pdf",
+        "subjectId": "EECS3311",
+        "text": "Draw class and package diagrams for classes from \r\na package in Apache-Math\r\n• https://commons.apache.org/proper/commons-math/commons-math-\r\ndocs/apidocs/index.html\r\nExercise – class diagram",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-4-UML-II.pdf",
+        "subjectId": "EECS3311",
+        "text": "UML (Unified Modeling Language)\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on\r\nSE463 at UW, SENG321 at UVic, 4010-420 at RIT\r\nand previous EECS3311 offerings:\r\n• Jo Atlee, Dan Berry, Daniela Damian, Nancy Day, Mike \r\nGodfrey, Ahmed E. Hassan, Jonathan S. Ostroff, Emad \r\nShihab, Davor Svetinovic, Jack Jiang\r\nhttps://en.wikipedia.org/wiki/Unified_Modeling_Language\r",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-4-UML-II.pdf",
+        "subjectId": "EECS3311",
+        "text": "Give more details…\r\nReturn Values and Conditions \r\nMore Conditions \r\nMore Conditions \r\nA good sequence diagram can \r\nhelp write precisely code \r\nOne more example: clients cancel \r\norders on Freshii online system",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-5-SOLID.pdf",
+        "subjectId": "EECS3311",
+        "text": "SOLID Design Principles \r\nEECS 3311\r\nSong Wang\r\nwangsong@yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on\r\nSE463 at UW, SENG321 at UVic, 4010-420 at RIT\r\nand previous EECS3311 offerings:\r\n• Jo Atlee, Dan Berry, Daniela Damian, Nancy Day, Mike \r\nGodfrey, Ahmed E. Hassan, Jonathan S. Ostroff, Emad \r\nShihab, Davor Svetinovic, Jack Jiang, Kostas \r\nKontogiannis\r\nSOLID Design Principles\r\n• Five design princi",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-6-Design Pattern-Creational.pdf",
+        "subjectId": "EECS3311",
+        "text": "Design Patterns\r\nEECS 3311\r\nSong Wang\r\nwangsong@eecs.yorku.ca\r\neecs.yorku.ca/~wangsong/\r\nAcknowledge\r\n• Some of the covered materials are based on SOEN\r\n344 at Concordia, SE463 at UW, SENG321 at UVic,\r\nCSE331 at University of Washington and previous\r\nEECS3311 offerings:\r\n• Nikolaos Tsantalis, Jo Atlee, Marty Stepp, Mike \r\nGodfrey, Jonathan S. Ostroff, M. Ernst, S. Reges, D. Notkin, \r\nR. Mercer, Davor Svetinovic, Jack Jiang, Jackie Wang\r\nOutlines\r",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-6-Design Pattern-Creational.pdf",
+        "subjectId": "EECS3311",
+        "text": "Suppose you are writing a program to plan the layout of gardens. These could be\r\nannual gardens, vegetable gardens or perennial gardens. However, no matter\r\nwhich kind of garden you are planning, you want to ask the same questions:\r\n▪ What are good border plants?\r\n▪ What are good center plants?\r\n▪ What plants do well in partial shade?\r\nWe want a base Garden class that can answer these questions:\r\npublic abstract class Garden {\r\npublic abstract Pl",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311-6-Design Pattern-Creational.pdf",
+        "subjectId": "EECS3311",
+        "text": "This implementation has the advantage of encapsulating the try-catch block inside\r\nthe public clone method.\r\nNote that if you declare this public method to have the same name “clone,” it\r\nmust be of type Object, since the internal protected method has that signature. We\r\ncould, however, change the name and do the typecasting within the method\r\ninstead of forcing it onto the user:\r\npublic SwimData cloneMe() {\r\ntry{\r\nreturn (SwimData)super.clone();",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "EECS3311_F26_syllabus.pdf",
+        "subjectId": "EECS3311",
+        "text": "EECS 3311 3.00: Software Design\r\nSection A, Fall 2026\r\nInstructor\r\n– Song Wang (http://www.eecs.yorku.ca/~wangsong)\r\n– Contact: wangsong@yorku.ca\r\n– Lecture Times: 08:00 AM – 09:50 AM, Tuesdays and Thursdays;\r\n– Office Hours: 10:30 AM – 12:00 PM, Tuesdays/Thursdays; or by Appointments.\r\nPrerequisites\r\n– General Prerequisites: A cumulative grade point average (GPA) of 4.50 or better\r\nover all previously completed Major EECS courses. The GPA comput",
+        "similarityScore": 0.0
+      },
+      {
+        "sourceFileName": "Java_SDK_Design_Patterns.pdf",
+        "subjectId": "EECS3311",
+        "text": "Design Patterns in Java SDKs\r\nCREATIONAL\r\nBuilder  •  Factory Method\r\nSTRUCTURAL\r\nAdapter  •  Decorator  •  Facade\r\nBEHAVIORAL\r\nStrategy  •  Observer  •  Chain\r\nEECS 3311  •  Java SDK Design Patterns                                      1\r\nBuilder — Core Java Code\r\nMinimal structure: focus on roles, not business logic.\r\nHttpRequest req \u003d HttpRequest.newBuilder()\r\n.uri(URI.create(url))\r\n.header(\"Authorization\", token)\r\n.timeout(Duration.ofSeconds(",
+        "similarityScore": 0.0
+      }
+    ]
+  },
+  "scheduleGrid": [
+    [
+      "08:00 - 09:30",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "09:30 - 11:00",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "11:00 - 12:30",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "13:00 - 14:30",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "14:30 - 16:00",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "16:00 - 17:30",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "18:00 - 19:30",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    [
+      "19:30 - 21:00",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  ]
+}

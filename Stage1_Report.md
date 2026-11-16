@@ -117,7 +117,7 @@
 8. **Error/Alternative Cases:** If no study history exists yet (a brand new user), the GUI gracefully displays "No data available yet. Start a study session!" instead of crashing or rendering broken charts.
 
 ## 3. UML Class Diagram
-![Class Diagram](Diagrams/UML%20Class.png)
+![Class Diagram](Diagrams/UML%20Class.svg)
 
 ## 4. Design Pattern Explanations
 
