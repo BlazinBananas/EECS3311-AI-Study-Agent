@@ -77,8 +77,7 @@ public class MainGUI extends JFrame {
                     cardLayout.show(contentArea, "COURSES");
                 },
                 statusBanner,
-                importedDocsLabel
-        );
+                importedDocsLabel);
         this.courseDashboardPanel = new CourseDashboardPanel(facade, (code, title) -> {
             studyWorkspacePanel.setActiveCourse(code, title);
             cardLayout.show(contentArea, "WORKSPACE");
@@ -111,22 +110,27 @@ public class MainGUI extends JFrame {
 
     private synchronized void saveWorkspaceToDisk() {
         try {
+            studyWorkspacePanel.getNotebookMap().keySet().removeIf(subjectId -> courseDashboardPanel.getNotebooks()
+                    .stream().noneMatch(n -> n.id().equalsIgnoreCase(subjectId)));
             PersistedWorkspace dto = new PersistedWorkspace();
             dto.notebooks = courseDashboardPanel.getNotebooks();
             dto.notebookStates = studyWorkspacePanel.getNotebookMap();
             dto.ingestedChunks = facade.getAllIngestedChunks();
             dto.scheduleGrid = scheduleCalendarPanel.getScheduleGrid();
             Files.writeString(new File(WORKSPACE_FILE).toPath(), gson.toJson(dto));
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     private void loadWorkspaceFromDisk() {
         File file = new File(WORKSPACE_FILE);
-        if (!file.exists()) return;
+        if (!file.exists())
+            return;
         try {
             String raw = Files.readString(file.toPath());
             PersistedWorkspace dto = gson.fromJson(raw, PersistedWorkspace.class);
-            if (dto == null) return;
+            if (dto == null)
+                return;
             if (dto.ingestedChunks != null) {
                 for (Map.Entry<String, List<DocumentChunk>> entry : dto.ingestedChunks.entrySet()) {
                     facade.restoreIngestedChunks(entry.getKey(), entry.getValue());
@@ -141,15 +145,15 @@ public class MainGUI extends JFrame {
             if (dto.scheduleGrid != null) {
                 scheduleCalendarPanel.setScheduleGrid(dto.scheduleGrid);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     private JPanel buildNavigationHeader() {
         JPanel nav = new JPanel(new BorderLayout(12, 0));
         nav.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, UIManager.getColor("Component.borderColor")),
-                new EmptyBorder(10, 22, 10, 22)
-        ));
+                new EmptyBorder(10, 22, 10, 22)));
 
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         JLabel brand = new JLabel("🎓 StudyAgent Workbench");
@@ -178,16 +182,9 @@ public class MainGUI extends JFrame {
         JButton themeBtn = new JButton("☀ Light Mode");
         themeBtn.addActionListener(e -> {
             darkMode = !darkMode;
-            try {
-                if (darkMode) {
-                    FlatDarkLaf.setup();
-                    themeBtn.setText("☀ Light Mode");
-                } else {
-                    FlatLightLaf.setup();
-                    themeBtn.setText("🌙 Dark Mode");
-                }
-                FlatLaf.updateUI();
-            } catch (Exception ignored) {}
+            applyTheme(darkMode);
+            themeBtn.setText(darkMode ? "☀ Light Mode" : "🌙 Dark Mode");
+            studyWorkspacePanel.refreshTheme();
         });
         right.add(themeBtn);
 
@@ -212,18 +209,88 @@ public class MainGUI extends JFrame {
                     "F09 Guided Session Warning",
                     JOptionPane.YES_NO_CANCEL_OPTION,
                     JOptionPane.WARNING_MESSAGE);
-            if (choice == JOptionPane.CANCEL_OPTION) return;
+            if (choice == JOptionPane.CANCEL_OPTION)
+                return;
         }
         saveWorkspaceToDisk();
         dispose();
         System.exit(0);
     }
 
+    private static final String[] CUSTOM_THEME_KEYS = {
+            "Panel.background", "OptionPane.background", "RootPane.background",
+            "SplitPane.background", "ScrollPane.background", "Viewport.background",
+            "TabbedPane.background", "TabbedPane.selectedBackground",
+            "TextArea.background", "TextArea.inactiveBackground", "TextArea.foreground",
+            "EditorPane.background", "EditorPane.inactiveBackground", "EditorPane.foreground",
+            "TextField.background", "TextField.inactiveBackground", "TextField.foreground",
+            "List.background", "List.foreground", "Table.background", "Table.foreground",
+            "ComboBox.background", "ComboBox.foreground", "Button.background",
+            "Button.foreground", "Label.foreground", "CheckBox.foreground",
+            "TitledBorder.titleColor", "Component.borderColor", "TextComponent.border"
+    };
+
+    private static void applyTheme(boolean dark) {
+        try {
+            for (String key : CUSTOM_THEME_KEYS) {
+                UIManager.put(key, null);
+            }
+
+            if (dark) {
+                FlatDarkLaf.setup();
+                javax.swing.plaf.ColorUIResource deepBg = new javax.swing.plaf.ColorUIResource(18, 20, 26);
+                javax.swing.plaf.ColorUIResource surfaceBg = new javax.swing.plaf.ColorUIResource(26, 29, 38);
+                javax.swing.plaf.ColorUIResource buttonBg = new javax.swing.plaf.ColorUIResource(36, 41, 54);
+                javax.swing.plaf.ColorUIResource borderCol = new javax.swing.plaf.ColorUIResource(42, 48, 60);
+                javax.swing.plaf.ColorUIResource lightText = new javax.swing.plaf.ColorUIResource(230, 235, 245);
+
+                UIManager.put("Panel.background", deepBg);
+                UIManager.put("OptionPane.background", deepBg);
+                UIManager.put("RootPane.background", deepBg);
+                UIManager.put("SplitPane.background", deepBg);
+                UIManager.put("ScrollPane.background", surfaceBg);
+                UIManager.put("Viewport.background", surfaceBg);
+                UIManager.put("TabbedPane.background", deepBg);
+                UIManager.put("TabbedPane.selectedBackground", surfaceBg);
+
+                // Set BOTH active and inactive (read-only) backgrounds so no gray boxes appear!
+                UIManager.put("TextArea.background", surfaceBg);
+                UIManager.put("TextArea.inactiveBackground", surfaceBg);
+                UIManager.put("TextArea.foreground", lightText);
+                UIManager.put("EditorPane.background", surfaceBg);
+                UIManager.put("EditorPane.inactiveBackground", surfaceBg);
+                UIManager.put("EditorPane.foreground", lightText);
+                UIManager.put("TextField.background", surfaceBg);
+                UIManager.put("TextField.inactiveBackground", surfaceBg);
+                UIManager.put("TextField.foreground", lightText);
+
+                UIManager.put("List.background", surfaceBg);
+                UIManager.put("List.foreground", lightText);
+                UIManager.put("Table.background", surfaceBg);
+                UIManager.put("Table.foreground", lightText);
+                UIManager.put("ComboBox.background", surfaceBg);
+                UIManager.put("ComboBox.foreground", lightText);
+
+                UIManager.put("Button.background", buttonBg);
+                UIManager.put("Button.foreground", lightText);
+                UIManager.put("Label.foreground", lightText);
+                UIManager.put("CheckBox.foreground", lightText);
+                UIManager.put("TitledBorder.titleColor", lightText);
+                UIManager.put("Component.borderColor", borderCol);
+            } else {
+                FlatLightLaf.setup();
+            }
+            FlatLaf.updateUI();
+        } catch (Exception ignored) {
+        }
+    }
+
     public static void main(String[] args) {
-        FlatDarkLaf.setup();
+        System.setProperty("flatlaf.uiScale", "1.25");
         UIManager.put("Button.arc", 14);
         UIManager.put("Component.arc", 12);
         UIManager.put("TextComponent.arc", 12);
+        applyTheme(true);
         SwingUtilities.invokeLater(() -> new MainGUI(new StudyAgentFacade()).setVisible(true));
     }
 }

@@ -41,6 +41,7 @@ import javax.swing.SwingWorker;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
+import javax.swing.JEditorPane;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -75,10 +76,14 @@ public class StudyWorkspacePanel extends JPanel {
         }
 
         @Override
-        public String toString() { return title; }
+        public String toString() {
+            return title;
+        }
     }
 
-    public enum ArtifactType { FLASHCARDS, QUIZ, NOTE }
+    public enum ArtifactType {
+        FLASHCARDS, QUIZ, NOTE
+    }
 
     public static class StudioArtifact {
         public ArtifactType type;
@@ -162,7 +167,8 @@ public class StudyWorkspacePanel extends JPanel {
     private Runnable onBackToNotebooks;
     private JLabel statusBanner;
     private JLabel importedDocsLabel;
-    private Runnable onStateChanged = () -> {};
+    private Runnable onStateChanged = () -> {
+    };
 
     private Map<String, NotebookState> notebookMap = new HashMap<>();
     private String activeSubjectId = "EECS3311";
@@ -186,7 +192,33 @@ public class StudyWorkspacePanel extends JPanel {
 
     // Center Column: Chat
     private JComboBox<ChatThread> chatThreadSelector = new JComboBox<>();
-    private JTextArea chatTranscriptArea = new JTextArea();
+    private JEditorPane chatTranscriptArea = new JEditorPane("text/html", "") {
+        @Override
+        public void setText(String rawText) {
+            if (rawText == null) {
+                super.setText("");
+                return;
+            }
+            String html = rawText
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;");
+
+            html = html.replaceAll("(?m)^#{1,3}\\s+(.*)$", "<b>$1</b>");
+            html = html.replaceAll("\\*\\*(.+?)\\*\\*", "<b>$1</b>");
+            html = html.replaceAll("`([^`]+)`", "<code>$1</code>");
+            html = html.replace("\n", "<br>");
+
+            boolean isDark = UIManager.getBoolean("laf.dark");
+            String fgHex = isDark ? "#e2e8f0" : "#1e293b";
+            String bgHex = isDark ? "#1a1d26" : "#ffffff";
+            setBackground(new javax.swing.plaf.ColorUIResource(isDark ? new Color(26, 29, 38) : Color.WHITE));
+
+            super.setText("<html><body style='margin:0; padding:12px 16px; font-family:SansSerif; font-size:13pt; "
+                    + "color:" + fgHex + "; background-color:" + bgHex + ";'>"
+                    + html + "</body></html>");
+        }
+    };
     private JTextField chatInputField = new JTextField();
     private boolean updatingThreadCombo = false;
 
@@ -218,7 +250,8 @@ public class StudyWorkspacePanel extends JPanel {
     private Timer pomodoroTimer;
     private int remainingSeconds = 25 * 60;
 
-    public StudyWorkspacePanel(StudyAgentFacade facade, Runnable onBackToNotebooks, JLabel statusBanner, JLabel importedDocsLabel) {
+    public StudyWorkspacePanel(StudyAgentFacade facade, Runnable onBackToNotebooks, JLabel statusBanner,
+            JLabel importedDocsLabel) {
         this.facade = facade;
         this.onBackToNotebooks = onBackToNotebooks;
         this.statusBanner = statusBanner;
@@ -245,6 +278,10 @@ public class StudyWorkspacePanel extends JPanel {
         setActiveCourse("EECS3311", "EECS 3311 - Software Design");
     }
 
+    public void refreshTheme() {
+        chatTranscriptArea.setText(currentNotebook().activeThread().transcript.toString());
+    }
+
     private void toggleSourcesColumn() {
         sourcesMinimized = !sourcesMinimized;
         leftSourcesPanel.setVisible(!sourcesMinimized);
@@ -260,7 +297,8 @@ public class StudyWorkspacePanel extends JPanel {
     }
 
     public void setOnStateChanged(Runnable onStateChanged) {
-        this.onStateChanged = onStateChanged != null ? onStateChanged : () -> {};
+        this.onStateChanged = onStateChanged != null ? onStateChanged : () -> {
+        };
     }
 
     public Map<String, NotebookState> getNotebookMap() {
@@ -351,8 +389,7 @@ public class StudyWorkspacePanel extends JPanel {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1, true),
-                new EmptyBorder(10, 12, 10, 12)
-        ));
+                new EmptyBorder(10, 12, 10, 12)));
         panel.setPreferredSize(new Dimension(250, 600));
 
         JPanel topBox = new JPanel(new GridLayout(4, 1, 6, 6));
@@ -432,7 +469,7 @@ public class StudyWorkspacePanel extends JPanel {
 
             ChatThread thread = nb.activeThread();
             thread.transcript.append(String.format(
-                    "\n[F02 Sources Added to %s]\n  ✓ Imported: %s (%d chunks)\n  ⚠ Skipped: %s\n",
+                    "\n[F02 Sources Added to %s]\n  [OK] Imported: %s (%d chunks)\n  [SKIPPED]: %s\n",
                     activeSubjectId, ing.getImportedFileNames(), ing.getTotalChunksCreated(), ing.getSkippedFiles()));
             chatTranscriptArea.setText(thread.transcript.toString());
             onStateChanged.run();
@@ -482,7 +519,8 @@ public class StudyWorkspacePanel extends JPanel {
         int totalCount = facade.getSubjectSources(activeSubjectId).size();
         selectAllSourcesCheck.setSelected(totalCount > 0 && checkedCount == totalCount);
         sourceCountPill.setText(checkedCount + " of " + totalCount + (totalCount == 1 ? " source" : " sources"));
-        importedDocsLabel.setText("Active Subject (" + activeSubjectId + "): " + checkedCount + "/" + totalCount + " sources active ");
+        importedDocsLabel.setText(
+                "Active Subject (" + activeSubjectId + "): " + checkedCount + "/" + totalCount + " sources active ");
     }
 
     // =========================================================================
@@ -492,8 +530,7 @@ public class StudyWorkspacePanel extends JPanel {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1, true),
-                new EmptyBorder(10, 14, 10, 14)
-        ));
+                new EmptyBorder(10, 14, 10, 14)));
 
         // 2-Row Header prevents button collision on any window size!
         JPanel chatHeader = new JPanel(new GridLayout(2, 1, 0, 4));
@@ -501,7 +538,8 @@ public class StudyWorkspacePanel extends JPanel {
         JPanel row1 = new JPanel(new BorderLayout(8, 0));
         row1.add(new JLabel("Thread:"), BorderLayout.WEST);
         chatThreadSelector.addActionListener(e -> {
-            if (updatingThreadCombo) return;
+            if (updatingThreadCombo)
+                return;
             int idx = chatThreadSelector.getSelectedIndex();
             if (idx >= 0) {
                 NotebookState nb = currentNotebook();
@@ -518,7 +556,8 @@ public class StudyWorkspacePanel extends JPanel {
             int nextNum = nb.chatThreads.size() + 1;
             String name = JOptionPane.showInputDialog(this, "Enter topic for new chat thread:", "Chat " + nextNum);
             if (name != null && !name.isBlank()) {
-                nb.chatThreads.add(new ChatThread(name.trim(), "=== Thread: " + name.trim() + " (" + nb.displayTitle + ") ===\n"));
+                nb.chatThreads.add(
+                        new ChatThread(name.trim(), "=== Thread: " + name.trim() + " (" + nb.displayTitle + ") ===\n"));
                 nb.activeThreadIndex = nb.chatThreads.size() - 1;
                 onStateChanged.run();
                 refreshChatThreadSelectorForActiveNotebook();
@@ -540,10 +579,12 @@ public class StudyWorkspacePanel extends JPanel {
         panel.add(chatHeader, BorderLayout.NORTH);
 
         chatTranscriptArea.setEditable(false);
-        chatTranscriptArea.setLineWrap(true);
-        chatTranscriptArea.setWrapStyleWord(true);
-        chatTranscriptArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
-        panel.add(new JScrollPane(chatTranscriptArea), BorderLayout.CENTER);
+        chatTranscriptArea.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+        chatTranscriptArea.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        chatTranscriptArea.setBorder(null);
+        JScrollPane chatScroll = new JScrollPane(chatTranscriptArea);
+        chatScroll.setBorder(BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1, true));
+        panel.add(chatScroll, BorderLayout.CENTER);
 
         JPanel promptBar = new JPanel(new BorderLayout(8, 0));
         promptBar.setBorder(new EmptyBorder(6, 0, 0, 0));
@@ -561,7 +602,8 @@ public class StudyWorkspacePanel extends JPanel {
 
         Runnable sendAction = () -> {
             String q = chatInputField.getText().trim();
-            if (q.isEmpty()) return;
+            if (q.isEmpty())
+                return;
             NotebookState nb = currentNotebook();
             ChatThread activeThread = nb.activeThread();
             Set<String> checked = new LinkedHashSet<>(nb.checkedSources);
@@ -582,13 +624,15 @@ public class StudyWorkspacePanel extends JPanel {
                     try {
                         ChatResponse resp = get();
                         activeThread.lastResponse = resp;
-                        activeThread.transcript.append("\n────────────────────────────────────────────────────\n");
+                        activeThread.transcript
+                                .append("\n------------------------------------------------------------\n");
                         activeThread.transcript.append("You: ").append(q).append("\n\n");
                         activeThread.transcript.append(resp.getAnswerText()).append("\n");
                         if (resp.isUsedWebFallback()) {
-                            activeThread.transcript.append("\n🌐 [F03 Live Web Citations]:\n");
+                            activeThread.transcript.append("\n[F03 Live Web Citations]:\n");
                             for (WebSnippet ws : resp.getWebCitations()) {
-                                activeThread.transcript.append("  • ").append(ws.getTitle()).append(" (").append(ws.getUrl()).append(")\n");
+                                activeThread.transcript.append("  • ").append(ws.getTitle()).append(" (")
+                                        .append(ws.getUrl()).append(")\n");
                             }
                         }
                         chatTranscriptArea.setText(activeThread.transcript.toString());
@@ -618,7 +662,8 @@ public class StudyWorkspacePanel extends JPanel {
         NotebookState nb = currentNotebook();
         ChatResponse last = nb.activeThread().lastResponse;
         String content = (last != null) ? last.getAnswerText() : chatTranscriptArea.getText();
-        if (content == null || content.isBlank()) return;
+        if (content == null || content.isBlank())
+            return;
 
         String title = JOptionPane.showInputDialog(this, "Note Title:",
                 activeSubjectId + " Study Guide " + (nb.studioItems.size() + 1));
@@ -668,18 +713,19 @@ public class StudyWorkspacePanel extends JPanel {
         area.setEditable(false);
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
-        JOptionPane.showMessageDialog(this, new JScrollPane(area), "F04 Source Citations", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, new JScrollPane(area), "F04 Source Citations",
+                JOptionPane.INFORMATION_MESSAGE);
     }
 
     // =========================================================================
-    // RIGHT COLUMN: STUDIO PANEL (With Maximize Buttons on Flashcards, Quiz & Code Lab)
+    // RIGHT COLUMN: STUDIO PANEL (With Maximize Buttons on Flashcards, Quiz & Code
+    // Lab)
     // =========================================================================
     private JPanel buildRightStudioColumn() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1, true),
-                new EmptyBorder(10, 12, 10, 12)
-        ));
+                new EmptyBorder(10, 12, 10, 12)));
         panel.setPreferredSize(new Dimension(380, 600));
 
         JPanel studioTop = new JPanel(new BorderLayout(0, 8));
@@ -752,9 +798,11 @@ public class StudyWorkspacePanel extends JPanel {
         int checkedCount = nb.checkedSources.size();
 
         JTextField titleField = new JTextField(activeSubjectId + " Quiz " + (nb.studioItems.size() + 1), 20);
-        JComboBox<String> countPresetBox = new JComboBox<>(new String[]{"Fewer (2 questions)", "Standard (4 questions)", "More (6 questions)", "Insufficient Material Demo (15 questions)"});
+        JComboBox<String> countPresetBox = new JComboBox<>(new String[] { "Fewer (2 questions)",
+                "Standard (4 questions)", "More (6 questions)", "Insufficient Material Demo (15 questions)" });
         countPresetBox.setSelectedIndex(1);
-        JComboBox<String> diffPresetBox = new JComboBox<>(new String[]{"Beginner (Easy)", "Intermediate (Medium)", "Advanced (Hard)"});
+        JComboBox<String> diffPresetBox = new JComboBox<>(
+                new String[] { "Beginner (Easy)", "Intermediate (Medium)", "Advanced (Hard)" });
         diffPresetBox.setSelectedIndex(1);
 
         JTextArea topicPromptArea = new JTextArea(3, 24);
@@ -781,7 +829,8 @@ public class StudyWorkspacePanel extends JPanel {
 
         int res = JOptionPane.showConfirmDialog(this, modal, "📝 Configure Quiz (F06)",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        if (res != JOptionPane.OK_OPTION) return;
+        if (res != JOptionPane.OK_OPTION)
+            return;
 
         int count = switch (countPresetBox.getSelectedIndex()) {
             case 0 -> 2;
@@ -795,7 +844,8 @@ public class StudyWorkspacePanel extends JPanel {
             default -> "Advanced";
         };
         String customTopic = topicPromptArea.getText().trim();
-        String quizTitle = titleField.getText().trim().isEmpty() ? activeSubjectId + " Quiz" : titleField.getText().trim();
+        String quizTitle = titleField.getText().trim().isEmpty() ? activeSubjectId + " Quiz"
+                : titleField.getText().trim();
         Set<String> checked = new LinkedHashSet<>(nb.checkedSources);
 
         setBusyState(true, "Generating '" + quizTitle + "' (" + count + " questions)...");
@@ -811,14 +861,16 @@ public class StudyWorkspacePanel extends JPanel {
                 setBusyState(false, "");
                 try {
                     Quiz generated = get();
-                    StudioArtifact item = new StudioArtifact(quizTitle, checked.size() + " sources • " + diff, generated);
+                    StudioArtifact item = new StudioArtifact(quizTitle, checked.size() + " sources • " + diff,
+                            generated);
                     nb.studioItems.add(0, item);
                     onStateChanged.run();
                     refreshStudioLibraryList();
                     openStudioArtifact(item);
                 } catch (Exception ex) {
                     Throwable c = ex.getCause() != null ? ex.getCause() : ex;
-                    JOptionPane.showMessageDialog(StudyWorkspacePanel.this, c.getMessage(), "F06 Quiz Alert", JOptionPane.WARNING_MESSAGE);
+                    JOptionPane.showMessageDialog(StudyWorkspacePanel.this, c.getMessage(), "F06 Quiz Alert",
+                            JOptionPane.WARNING_MESSAGE);
                 }
             }
         }.execute();
@@ -829,7 +881,8 @@ public class StudyWorkspacePanel extends JPanel {
         int checkedCount = nb.checkedSources.size();
 
         JTextField titleField = new JTextField(activeSubjectId + " Flashcards " + (nb.studioItems.size() + 1), 20);
-        JComboBox<String> countPresetBox = new JComboBox<>(new String[]{"Fewer (3 cards)", "Standard (5 cards)", "More (8 cards)"});
+        JComboBox<String> countPresetBox = new JComboBox<>(
+                new String[] { "Fewer (3 cards)", "Standard (5 cards)", "More (8 cards)" });
         countPresetBox.setSelectedIndex(0);
 
         JTextArea topicPromptArea = new JTextArea(3, 24);
@@ -854,7 +907,8 @@ public class StudyWorkspacePanel extends JPanel {
 
         int res = JOptionPane.showConfirmDialog(this, modal, "🗂 Configure Flashcards (F05)",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        if (res != JOptionPane.OK_OPTION) return;
+        if (res != JOptionPane.OK_OPTION)
+            return;
 
         int count = switch (countPresetBox.getSelectedIndex()) {
             case 0 -> 3;
@@ -862,7 +916,8 @@ public class StudyWorkspacePanel extends JPanel {
             default -> 8;
         };
         String customTopic = topicPromptArea.getText().trim();
-        String deckTitle = titleField.getText().trim().isEmpty() ? activeSubjectId + " Flashcards" : titleField.getText().trim();
+        String deckTitle = titleField.getText().trim().isEmpty() ? activeSubjectId + " Flashcards"
+                : titleField.getText().trim();
         Set<String> checked = new LinkedHashSet<>(nb.checkedSources);
 
         setBusyState(true, "Generating '" + deckTitle + "' (" + count + " flashcards)...");
@@ -878,14 +933,16 @@ public class StudyWorkspacePanel extends JPanel {
                 setBusyState(false, "");
                 try {
                     List<Flashcard> deck = get();
-                    StudioArtifact item = new StudioArtifact(deckTitle, checked.size() + " sources • " + deck.size() + " cards", deck);
+                    StudioArtifact item = new StudioArtifact(deckTitle,
+                            checked.size() + " sources • " + deck.size() + " cards", deck);
                     nb.studioItems.add(0, item);
                     onStateChanged.run();
                     refreshStudioLibraryList();
                     openStudioArtifact(item);
                 } catch (Exception ex) {
                     Throwable c = ex.getCause() != null ? ex.getCause() : ex;
-                    JOptionPane.showMessageDialog(StudyWorkspacePanel.this, c.getMessage(), "F05 Flashcards Alert", JOptionPane.WARNING_MESSAGE);
+                    JOptionPane.showMessageDialog(StudyWorkspacePanel.this, c.getMessage(), "F05 Flashcards Alert",
+                            JOptionPane.WARNING_MESSAGE);
                 }
             }
         }.execute();
@@ -962,8 +1019,7 @@ public class StudyWorkspacePanel extends JPanel {
                     activeSubjectId, nb.activeDeck, () -> {
                         onStateChanged.run();
                         updateFlashcardView();
-                    }
-            );
+                    });
         });
         topRow.add(maximizeBtn, BorderLayout.EAST);
 
@@ -1021,7 +1077,8 @@ public class StudyWorkspacePanel extends JPanel {
             flashcardTextArea.setText("Click '🗂 + Flashcards (F05)' above to generate a custom flashcard set.");
             return;
         }
-        if (nb.cardIndex >= nb.activeDeck.size()) nb.cardIndex = 0;
+        if (nb.cardIndex >= nb.activeDeck.size())
+            nb.cardIndex = 0;
         Flashcard c = nb.activeDeck.get(nb.cardIndex);
         flashcardCounterLabel.setText(String.format("%s — %d/%d (%s)",
                 nb.activeDeckTitle, nb.cardIndex + 1, nb.activeDeck.size(),
@@ -1059,7 +1116,8 @@ public class StudyWorkspacePanel extends JPanel {
         JPanel p = new JPanel(new BorderLayout(6, 6));
         p.setBorder(BorderFactory.createTitledBorder("F07 & F08: Coding Practice & AI Grader"));
 
-        // 2-Row Header guarantees '⤢ Maximize' is ALWAYS visible even when Sources is open!
+        // 2-Row Header guarantees '⤢ Maximize' is ALWAYS visible even when Sources is
+        // open!
         JPanel topContainer = new JPanel(new GridLayout(2, 1, 4, 4));
 
         JPanel row1 = new JPanel(new BorderLayout(6, 0));
@@ -1083,7 +1141,8 @@ public class StudyWorkspacePanel extends JPanel {
         problemStatementArea.setEditable(false);
         problemStatementArea.setLineWrap(true);
         problemStatementArea.setWrapStyleWord(true);
-        problemStatementArea.setText("Click 'F07: Problem' above to synthesize a coding problem, or click '⤢ Maximize' for full-screen view.");
+        problemStatementArea.setText(
+                "Click 'F07: Problem' above to synthesize a coding problem, or click '⤢ Maximize' for full-screen view.");
 
         codeEditorArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
         codeEditorArea.setText("// Click 'F07: Problem' to load starter code here...");
@@ -1102,8 +1161,7 @@ public class StudyWorkspacePanel extends JPanel {
             MaximizedStudyDialog.showCodeLabModal(
                     parentFrame, activeSubjectId, facade,
                     codingTopicField, problemStatementArea, codeEditorArea, gradeFeedbackArea,
-                    onStateChanged
-            );
+                    onStateChanged);
         });
 
         genBtn.addActionListener(e -> {
@@ -1123,13 +1181,15 @@ public class StudyWorkspacePanel extends JPanel {
                     setBusyState(false, "");
                     try {
                         nb.latestProblem = get();
-                        problemStatementArea.setText(nb.latestProblem.getProblemTitle() + "\n\n" + nb.latestProblem.getDescription());
+                        problemStatementArea.setText(
+                                nb.latestProblem.getProblemTitle() + "\n\n" + nb.latestProblem.getDescription());
                         codeEditorArea.setText(nb.latestProblem.getStarterCode());
                         codeSubTabs.setSelectedIndex(0);
                         onStateChanged.run();
                     } catch (Exception ex) {
                         Throwable c = ex.getCause() != null ? ex.getCause() : ex;
-                        JOptionPane.showMessageDialog(StudyWorkspacePanel.this, c.getMessage(), "F07 Refusal / Alert", JOptionPane.WARNING_MESSAGE);
+                        JOptionPane.showMessageDialog(StudyWorkspacePanel.this, c.getMessage(), "F07 Refusal / Alert",
+                                JOptionPane.WARNING_MESSAGE);
                     }
                 }
             }.execute();
@@ -1161,7 +1221,8 @@ public class StudyWorkspacePanel extends JPanel {
                         codeSubTabs.setSelectedIndex(2);
                     } catch (Exception ex) {
                         Throwable c = ex.getCause() != null ? ex.getCause() : ex;
-                        JOptionPane.showMessageDialog(StudyWorkspacePanel.this, c.getMessage(), "F08 Guard", JOptionPane.WARNING_MESSAGE);
+                        JOptionPane.showMessageDialog(StudyWorkspacePanel.this, c.getMessage(), "F08 Guard",
+                                JOptionPane.WARNING_MESSAGE);
                     }
                 }
             }.execute();
@@ -1180,15 +1241,14 @@ public class StudyWorkspacePanel extends JPanel {
         JPanel examBuilderCard = new JPanel(new GridLayout(4, 1, 4, 6));
         examBuilderCard.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(UIManager.getColor("Component.borderColor"), 1, true),
-                new EmptyBorder(8, 10, 8, 10)
-        ));
+                new EmptyBorder(8, 10, 8, 10)));
 
         JLabel builderTitle = new JLabel("🎓 Cumulative Exam Builder (Combines Saved Quizzes)");
         builderTitle.setFont(new Font("SansSerif", Font.BOLD, 13));
 
         JPanel pacingRow = new JPanel(new BorderLayout(6, 0));
         pacingRow.add(new JLabel("Time Limit Rule:"), BorderLayout.WEST);
-        JComboBox<String> timeRuleBox = new JComboBox<>(new String[]{
+        JComboBox<String> timeRuleBox = new JComboBox<>(new String[] {
                 "Standard Exam (90s / question)",
                 "Relaxed Review (120s / question)",
                 "Speed Drill (45s / question)",
@@ -1249,8 +1309,7 @@ public class StudyWorkspacePanel extends JPanel {
                     "exam-" + System.currentTimeMillis(),
                     activeSubjectId,
                     "Cumulative (" + quizCount + " quizzes)",
-                    mergedQuestions
-            );
+                    mergedQuestions);
             nb.activeQuiz = combinedExam;
             nb.activeQuizTitle = activeSubjectId + " Cumulative Exam (" + mergedQuestions.size() + " Qs)";
             nb.activeQuizSubtitle = String.format("Merged %d quizzes • Time Limit: %02d:%02d (%ds/Q)",
@@ -1263,14 +1322,14 @@ public class StudyWorkspacePanel extends JPanel {
                         onStateChanged.run();
                         refreshSessionView();
                         refreshAnalyticsDisplay();
-                    }, totalExamSeconds
-            );
+                    }, totalExamSeconds);
         });
 
         runActiveBtn.addActionListener(e -> {
             NotebookState nb = currentNotebook();
             if (nb.activeQuiz == null || nb.activeQuiz.getQuestions().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Select a saved Quiz in the library above first, or click '⚡ Start Combined Timed Exam'.");
+                JOptionPane.showMessageDialog(this,
+                        "Select a saved Quiz in the library above first, or click '⚡ Start Combined Timed Exam'.");
                 return;
             }
             int secsPerQ = getSecondsPerQuestion.getAsInt();
@@ -1278,13 +1337,13 @@ public class StudyWorkspacePanel extends JPanel {
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
             MaximizedStudyDialog.showQuizModal(
                     parentFrame, nb.activeQuizTitle,
-                    nb.activeQuizSubtitle + String.format(" • Limit: %02d:%02d", totalExamSeconds / 60, totalExamSeconds % 60),
+                    nb.activeQuizSubtitle
+                            + String.format(" • Limit: %02d:%02d", totalExamSeconds / 60, totalExamSeconds % 60),
                     nb.activeQuiz, facade, () -> {
                         onStateChanged.run();
                         refreshSessionView();
                         refreshAnalyticsDisplay();
-                    }, totalExamSeconds
-            );
+                    }, totalExamSeconds);
         });
 
         undoLastBtn.addActionListener(e -> {
@@ -1300,7 +1359,8 @@ public class StudyWorkspacePanel extends JPanel {
 
         // Bottom Card: F10 Real-Time Progress Analytics & Visual Mastery Bar
         JPanel statsPanel = new JPanel(new BorderLayout(6, 6));
-        statsPanel.setBorder(BorderFactory.createTitledBorder("F10: Real-Time Subject Mastery & Analytics (Observer Pattern)"));
+        statsPanel.setBorder(
+                BorderFactory.createTitledBorder("F10: Real-Time Subject Mastery & Analytics (Observer Pattern)"));
         analyticsTextArea.setEditable(false);
         analyticsTextArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
         chartPanel.setPreferredSize(new Dimension(300, 65));
@@ -1320,7 +1380,7 @@ public class StudyWorkspacePanel extends JPanel {
         JTextField localModelField = new JTextField(current.getOllamaModel(), 18);
         JPasswordField apiKeyField = new JPasswordField(current.getOpenAiApiKey(), 18);
         JTextField cloudModelField = new JTextField(current.getOpenAiModel(), 14);
-        JComboBox<String> detectedModelsBox = new JComboBox<>(new String[]{"Click 'Detect Local Models' ->"});
+        JComboBox<String> detectedModelsBox = new JComboBox<>(new String[] { "Click 'Detect Local Models' ->" });
 
         JButton detectBtn = new JButton("Detect Installed LM Studio / Ollama Models");
         detectBtn.addActionListener(e -> {
@@ -1329,7 +1389,8 @@ public class StudyWorkspacePanel extends JPanel {
             if (found.isEmpty()) {
                 detectedModelsBox.addItem("No server detected on :1234 or :11434");
             } else {
-                for (String m : found) detectedModelsBox.addItem(m);
+                for (String m : found)
+                    detectedModelsBox.addItem(m);
                 localModelField.setText(found.get(0));
             }
         });
@@ -1369,8 +1430,7 @@ public class StudyWorkspacePanel extends JPanel {
                     localModelField.getText().trim(),
                     new String(apiKeyField.getPassword()).trim(),
                     cloudModelField.getText().trim(),
-                    facade.isWebSearchPermitted()
-            );
+                    facade.isWebSearchPermitted());
             if (!facade.setEngineMode(localMode, updated)) {
                 JOptionPane.showMessageDialog(this, "Invalid endpoint or API key — reverted to previous setting.",
                         "F01 Error", JOptionPane.ERROR_MESSAGE);
@@ -1391,7 +1451,8 @@ public class StudyWorkspacePanel extends JPanel {
 
     private void startPomodoroTimer() {
         remainingSeconds = 25 * 60;
-        if (pomodoroTimer != null) pomodoroTimer.stop();
+        if (pomodoroTimer != null)
+            pomodoroTimer.stop();
         pomodoroTimer = new Timer(1000, e -> {
             if (remainingSeconds > 0) {
                 remainingSeconds--;
@@ -1463,5 +1524,11 @@ public class StudyWorkspacePanel extends JPanel {
             g2.setColor(Color.WHITE);
             g2.drawString(String.format("%.1f%% Mastery", masteryPercent), 20, barY + 17);
         }
+    }
+
+    public void deleteCourseState(String subjectId) {
+        notebookMap.remove(subjectId);
+        facade.deleteSubjectData(subjectId);
+        onStateChanged.run();
     }
 }

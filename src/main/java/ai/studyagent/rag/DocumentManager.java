@@ -42,7 +42,8 @@ public class DocumentManager {
         subjectFilesMap.putIfAbsent(subjectId, new LinkedHashSet<>());
 
         for (File file : files) {
-            if (file.isDirectory()) continue;
+            if (file.isDirectory())
+                continue;
             if (subjectFilesMap.get(subjectId).contains(file.getName())) {
                 imported.add(file.getName());
                 continue;
@@ -82,7 +83,8 @@ public class DocumentManager {
         return retrieveRelevantChunks(subjectId, query, topK, null);
     }
 
-    public List<DocumentChunk> retrieveRelevantChunks(String subjectId, String query, int topK, Set<String> allowedFiles) {
+    public List<DocumentChunk> retrieveRelevantChunks(String subjectId, String query, int topK,
+            Set<String> allowedFiles) {
         List<DocumentChunk> chunks = subjectStore.getOrDefault(subjectId, new ArrayList<>());
         List<DocumentChunk> scored = new ArrayList<>();
 
@@ -113,17 +115,19 @@ public class DocumentManager {
     }
 
     public void restoreSubjectChunks(String subjectId, List<DocumentChunk> chunks) {
-        if (chunks == null || chunks.isEmpty()) return;
+        if (chunks == null || chunks.isEmpty())
+            return;
         subjectStore.put(subjectId, new ArrayList<>(chunks));
         subjectFilesMap.putIfAbsent(subjectId, new LinkedHashSet<>());
         for (DocumentChunk c : chunks) {
             subjectFilesMap.get(subjectId).add(c.getSourceFileName());
         }
     }
-    
+
     private List<String> splitIntoChunks(String text, int maxChars) {
         List<String> result = new ArrayList<>();
-        if (text == null || text.isBlank()) return result;
+        if (text == null || text.isBlank())
+            return result;
         String[] paragraphs = text.split("\\r?\\n\\r?\\n");
         for (String p : paragraphs) {
             String trimmed = p.trim();
@@ -135,10 +139,13 @@ public class DocumentManager {
     }
 
     private double computeKeywordOverlapSimilarity(String query, String chunkText) {
-        if (query == null || query.isBlank() || chunkText == null || chunkText.isBlank()) return 0.0;
+        if (query == null || query.isBlank() || chunkText == null || chunkText.isBlank())
+            return 0.0;
         String[] qTokens = query.toLowerCase().replaceAll("[^a-z0-9 ]", "").split("\\s+");
-        Set<String> cTokens = new HashSet<>(List.of(chunkText.toLowerCase().replaceAll("[^a-z0-9 ]", "").split("\\s+")));
-        if (qTokens.length == 0) return 0.0;
+        Set<String> cTokens = new HashSet<>(
+                List.of(chunkText.toLowerCase().replaceAll("[^a-z0-9 ]", "").split("\\s+")));
+        if (qTokens.length == 0)
+            return 0.0;
 
         int matches = 0;
         int validTokens = 0;
@@ -150,7 +157,13 @@ public class DocumentManager {
                 }
             }
         }
-        if (validTokens == 0) return 0.0;
+        if (validTokens == 0)
+            return 0.0;
         return Math.min(1.0, (double) matches / validTokens);
+    }
+
+    public void deleteSubjectData(String subjectId) {
+        subjectStore.remove(subjectId);
+        subjectFilesMap.remove(subjectId);
     }
 }

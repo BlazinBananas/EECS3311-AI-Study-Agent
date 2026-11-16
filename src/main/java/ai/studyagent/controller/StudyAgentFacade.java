@@ -80,7 +80,8 @@ public class StudyAgentFacade {
         return agentController.generateFlashcards(subjectId, count, "", null);
     }
 
-    public List<Flashcard> requestFlashcards(String subjectId, int count, String customTopic, Set<String> selectedSources) throws Exception {
+    public List<Flashcard> requestFlashcards(String subjectId, int count, String customTopic,
+            Set<String> selectedSources) throws Exception {
         return agentController.generateFlashcards(subjectId, count, customTopic, selectedSources);
     }
 
@@ -88,7 +89,8 @@ public class StudyAgentFacade {
         return agentController.generateQuiz(subjectId, difficulty, count, "", null);
     }
 
-    public Quiz requestQuiz(String subjectId, String difficulty, int count, String customTopic, Set<String> selectedSources) throws Exception {
+    public Quiz requestQuiz(String subjectId, String difficulty, int count, String customTopic,
+            Set<String> selectedSources) throws Exception {
         return agentController.generateQuiz(subjectId, difficulty, count, customTopic, selectedSources);
     }
 
@@ -113,7 +115,8 @@ public class StudyAgentFacade {
 
     public boolean submitQuizAnswer(int choiceIndex) {
         StudySession session = sessionManager.getActiveSession();
-        if (session == null || session.isCompleted()) return false;
+        if (session == null || session.isCompleted())
+            return false;
         QuizQuestion currentQuestion = session.getCurrentQuestion();
         SubmitAnswerCommand cmd = new SubmitAnswerCommand(session, currentQuestion, choiceIndex);
         return sessionManager.executeCommand(cmd);
@@ -125,5 +128,9 @@ public class StudyAgentFacade {
 
     public String viewAnalytics() {
         return analyticsDashboard.renderCharts();
+    }
+
+    public void deleteSubjectData(String subjectId) {
+        documentManager.deleteSubjectData(subjectId);
     }
 }

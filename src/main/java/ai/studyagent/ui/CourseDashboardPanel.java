@@ -33,14 +33,16 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 public class CourseDashboardPanel extends JPanel {
-    public record NotebookInfo(String id, String title, String icon, String createdDate) {}
+    public record NotebookInfo(String id, String title, String icon, String createdDate) {
+    }
 
     private final StudyAgentFacade facade;
     private final List<NotebookInfo> notebooks = new ArrayList<>();
     private final JPanel gridContainer = new JPanel();
     private final JTextField searchField = new JTextField(18);
     private final BiConsumer<String, String> onOpenNotebook;
-    private Runnable onStateChanged = () -> {};
+    private Runnable onStateChanged = () -> {
+    };
 
     public CourseDashboardPanel(StudyAgentFacade facade, BiConsumer<String, String> onOpenNotebook) {
         this.facade = facade;
@@ -59,7 +61,8 @@ public class CourseDashboardPanel extends JPanel {
     }
 
     public void setOnStateChanged(Runnable onStateChanged) {
-        this.onStateChanged = onStateChanged != null ? onStateChanged : () -> {};
+        this.onStateChanged = onStateChanged != null ? onStateChanged : () -> {
+        };
     }
 
     public List<NotebookInfo> getNotebooks() {
@@ -111,7 +114,8 @@ public class CourseDashboardPanel extends JPanel {
     private void showNewNotebookDialog() {
         JTextField idField = new JTextField("", 12);
         JTextField titleField = new JTextField("", 22);
-        String[] icons = {"💻 Laptop", "🤖 AI Robot", "📜 Scroll / History", "📐 Math / Logic", "🧬 Science", "📚 Course Book"};
+        String[] icons = { "💻 Laptop", "🤖 AI Robot", "📜 Scroll / History", "📐 Math / Logic", "🧬 Science",
+                "📚 Course Book" };
         JComboBox<String> iconBox = new JComboBox<>(icons);
 
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
@@ -127,9 +131,12 @@ public class CourseDashboardPanel extends JPanel {
         if (res == JOptionPane.OK_OPTION) {
             String rawId = idField.getText().trim().replaceAll("\\s+", "");
             String fullTitle = titleField.getText().trim();
-            if (rawId.isEmpty() && fullTitle.isEmpty()) return;
-            if (rawId.isEmpty()) rawId = fullTitle.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
-            if (fullTitle.isEmpty()) fullTitle = rawId;
+            if (rawId.isEmpty() && fullTitle.isEmpty())
+                return;
+            if (rawId.isEmpty())
+                rawId = fullTitle.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+            if (fullTitle.isEmpty())
+                fullTitle = rawId;
 
             String selectedIcon = iconBox.getSelectedItem().toString().split(" ")[0];
             String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("d MMM yyyy"));
@@ -144,7 +151,8 @@ public class CourseDashboardPanel extends JPanel {
         String lower = filter == null ? "" : filter.toLowerCase();
 
         List<NotebookInfo> filtered = notebooks.stream()
-                .filter(n -> lower.isEmpty() || n.title().toLowerCase().contains(lower) || n.id().toLowerCase().contains(lower))
+                .filter(n -> lower.isEmpty() || n.title().toLowerCase().contains(lower)
+                        || n.id().toLowerCase().contains(lower))
                 .toList();
 
         if (filtered.isEmpty()) {
@@ -153,7 +161,9 @@ public class CourseDashboardPanel extends JPanel {
             emptyBox.setOpaque(false);
             JLabel emptyTitle = new JLabel("No notebooks yet", SwingConstants.CENTER);
             emptyTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
-            JLabel emptySub = new JLabel("Click '+ New notebook' in the top right to create isolated course workspaces.", SwingConstants.CENTER);
+            JLabel emptySub = new JLabel(
+                    "Click '+ New notebook' in the top right to create isolated course workspaces.",
+                    SwingConstants.CENTER);
             emptyBox.add(emptyTitle);
             emptyBox.add(emptySub);
             gridContainer.add(emptyBox);
@@ -202,6 +212,7 @@ public class CourseDashboardPanel extends JPanel {
                     "Delete Notebook", JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
                 notebooks.remove(nb);
+                facade.deleteSubjectData(nb.id());
                 onStateChanged.run();
                 refreshGrid(searchField.getText().trim());
             }
@@ -215,7 +226,8 @@ public class CourseDashboardPanel extends JPanel {
         titleLbl.setFont(new Font("SansSerif", Font.PLAIN, 15));
 
         int sourceCount = facade.getSubjectSources(nb.id()).size();
-        JLabel metaLbl = new JLabel(nb.createdDate() + " • " + sourceCount + (sourceCount == 1 ? " source" : " sources"));
+        JLabel metaLbl = new JLabel(
+                nb.createdDate() + " • " + sourceCount + (sourceCount == 1 ? " source" : " sources"));
         metaLbl.setFont(new Font("SansSerif", Font.PLAIN, 12));
         metaLbl.setForeground(UIManager.getColor("Label.disabledForeground"));
 

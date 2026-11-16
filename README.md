@@ -8,23 +8,26 @@
 
 **Course:** EECS 3311 - Software Design  
 **Institution:** York University  
-**Author:** Ihsan Hussain  
+**Author:** Ihsan Hussain
 
 ---
 
 ## About This Project
+
 This repository contains the design, implementation, and verification of **StudyAgent Workbench**, an AI-powered study and learning agent. The system is designed to ingest local course materials (`.pdf`, `.txt`, `.md`), synthesize interactive flashcards and adaptive quizzes, generate and grade Java coding problems, manage guided Pomodoro study sessions and cumulative timed exams, and provide a subject-grounded natural language chat with live web search augmentation. It features the option to toggle at runtime between a local self-hosted LLM (LM Studio / Ollama for offline privacy and utilization of local hardware) and a cloud-based API (OpenAI).
 
 ## Project Navigation
+
 - [Stage 1: Software and Agent Design](Stage1_Report.md)
 - [Stage 2: Implementation & Verification Report](Stage2_Report.md)
-- **Stage 3:** Testing and Validation *(Upcoming)*
+- **Stage 3:** Testing and Validation _(Upcoming)_
 - **UML & Sequence Diagrams:** [`Diagrams/`](Diagrams/)
 - **Sample Course Materials (F02):** [`sample-course-notes/`](sample-course-notes/)
 
 ---
 
 ## Tech Stack & Architecture
+
 - **Language & Build:** Java 25, Apache Maven (`pom.xml`)
 - **UI Frameworks:** Modernized Java Swing with **FlatLaf 3.7.2** (Dark/Light Mode, custom `Graphics2D` charts, and full-screen focus modals) + Interactive **CLI** (`Scanner` terminal menu)
 - **AI Integration:** Local HTTP/1.1 client for **LM Studio** (`:1234/v1/chat/completions`, tested with `Qwen3-8B`) and **Ollama** (`:11434/api/generate`, `llama3.1:8b`), plus Cloud HTTPS client for **OpenAI API** (`gpt-4o-mini`)
@@ -46,3 +49,4 @@ This repository contains the design, implementation, and verification of **Study
    ```bash
    git clone [https://github.com/blazinbananas/EECS3311-AI-Study-Agent.git](https://github.com/blazinbananas/EECS3311-AI-Study-Agent.git)
    cd EECS3311-AI-Study-Agent
+   ```

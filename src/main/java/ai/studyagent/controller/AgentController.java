@@ -65,23 +65,34 @@ public class AgentController {
         }
     }
 
-    public EngineConfig getConfig() { return config; }
-    public void setWebSearchEnabled(boolean enabled) { this.config.setPermitWebSearch(enabled); }
-    public boolean isWebSearchEnabled() { return this.config.isPermitWebSearch(); }
+    public EngineConfig getConfig() {
+        return config;
+    }
+
+    public void setWebSearchEnabled(boolean enabled) {
+        this.config.setPermitWebSearch(enabled);
+    }
+
+    public boolean isWebSearchEnabled() {
+        return this.config.isPermitWebSearch();
+    }
 
     public ChatResponse processChatRequest(String subjectId, String query) throws Exception {
         return processChatRequest(subjectId, query, null);
     }
 
-    public ChatResponse processChatRequest(String subjectId, String query, Set<String> selectedSources) throws Exception {
+    public ChatResponse processChatRequest(String subjectId, String query, Set<String> selectedSources)
+            throws Exception {
         if (query == null || query.isBlank()) {
             throw new IllegalArgumentException("Please enter a valid question before sending.");
         }
         if (!documentManager.hasDocuments(subjectId)) {
-            throw new IllegalStateException("This subject folder is empty. Please import materials (F02) before chatting.");
+            throw new IllegalStateException(
+                    "This subject folder is empty. Please import materials (F02) before chatting.");
         }
         if (selectedSources != null && selectedSources.isEmpty()) {
-            throw new IllegalStateException("No source files are checked! Please check at least one source file in the left Sources panel.");
+            throw new IllegalStateException(
+                    "No source files are checked! Please check at least one source file in the left Sources panel.");
         }
 
         List<DocumentChunk> chunks = documentManager.retrieveRelevantChunks(subjectId, query, 5, selectedSources);
@@ -101,15 +112,14 @@ public class AgentController {
             } catch (Exception e) {
                 return new ChatResponse(
                         "I do not have this information in your local notes, and I currently cannot access the internet to verify it.",
-                        chunks, Collections.emptyList(), false
-                );
+                        chunks, Collections.emptyList(), false);
             }
         } else if (maxSimilarity < 0.65) {
             return new ChatResponse(
                     "I do not have this information in your checked notes (max similarity "
-                            + String.format("%.2f", maxSimilarity) + " < 0.65), and Permit Web Search (F03) is disabled.",
-                    chunks, Collections.emptyList(), false
-            );
+                            + String.format("%.2f", maxSimilarity)
+                            + " < 0.65), and Permit Web Search (F03) is disabled.",
+                    chunks, Collections.emptyList(), false);
         } else {
             contextStrings = chunks.stream()
                     .filter(c -> c.getSimilarityScore() > 0.0)
@@ -122,8 +132,7 @@ public class AgentController {
 
         String answer = activeStrategy.generateResponse(
                 "Answer the following student question clearly and concisely using the provided context: " + query,
-                contextStrings
-        );
+                contextStrings);
         return new ChatResponse(answer, chunks, webCitations, usedWeb);
     }
 
@@ -131,12 +140,15 @@ public class AgentController {
         return generateFlashcards(subjectId, count, "", null);
     }
 
-    public List<Flashcard> generateFlashcards(String subjectId, int count, String customTopic, Set<String> selectedSources) throws Exception {
+    public List<Flashcard> generateFlashcards(String subjectId, int count, String customTopic,
+            Set<String> selectedSources) throws Exception {
         if (!documentManager.hasDocuments(subjectId)) {
-            throw new IllegalStateException("Subject folder '" + subjectId + "' is empty. Please import materials (F02) first.");
+            throw new IllegalStateException(
+                    "Subject folder '" + subjectId + "' is empty. Please import materials (F02) first.");
         }
         if (selectedSources != null && selectedSources.isEmpty()) {
-            throw new IllegalStateException("Please check at least one source file in the Sources panel to generate flashcards.");
+            throw new IllegalStateException(
+                    "Please check at least one source file in the Sources panel to generate flashcards.");
         }
         String searchKey = (customTopic == null || customTopic.isBlank()) ? subjectId : customTopic;
         List<DocumentChunk> chunks = documentManager.retrieveRelevantChunks(subjectId, searchKey, 6, selectedSources);
@@ -166,27 +178,33 @@ public class AgentController {
         return generateQuiz(subjectId, difficulty, count, "", null);
     }
 
-    public Quiz generateQuiz(String subjectId, String difficulty, int count, String customTopic, Set<String> selectedSources) throws Exception {
+    public Quiz generateQuiz(String subjectId, String difficulty, int count, String customTopic,
+            Set<String> selectedSources) throws Exception {
         if (!documentManager.hasDocuments(subjectId)) {
-            throw new IllegalStateException("Insufficient source material to generate a full quiz. Please ingest more documents.");
+            throw new IllegalStateException(
+                    "Insufficient source material to generate a full quiz. Please ingest more documents.");
         }
         if (selectedSources != null && selectedSources.isEmpty()) {
-            throw new IllegalStateException("Please check at least one source file in the Sources panel to generate a quiz.");
+            throw new IllegalStateException(
+                    "Please check at least one source file in the Sources panel to generate a quiz.");
         }
         String searchKey = (customTopic == null || customTopic.isBlank()) ? subjectId : customTopic;
         List<DocumentChunk> chunks = documentManager.retrieveRelevantChunks(subjectId, searchKey, 10, selectedSources);
         if (count > chunks.size() + 2) {
             throw new IllegalStateException("Insufficient source material to generate a full quiz (" + count
-                    + " questions requested, only " + chunks.size() + " chunks available in checked sources). Please ingest or select more documents.");
+                    + " questions requested, only " + chunks.size()
+                    + " chunks available in checked sources). Please ingest or select more documents.");
         }
 
         List<String> context = chunks.stream().map(DocumentChunk::getText).collect(Collectors.toList());
         String topicDirective = (customTopic == null || customTopic.isBlank())
                 ? "the provided sources"
                 : "this specific topic focus: " + customTopic;
-        String prompt = "Generate a " + difficulty + " multiple-choice quiz with " + count + " questions based on " + topicDirective + ". "
+        String prompt = "Generate a " + difficulty + " multiple-choice quiz with " + count + " questions based on "
+                + topicDirective + ". "
                 + "Return ONLY a valid JSON object with no markdown or extra text, in this exact format: "
-                + "{\"difficulty\":\"" + difficulty + "\",\"questions\":[{\"prompt\":\"Question text?\",\"options\":[\"Opt A\",\"Opt B\",\"Opt C\",\"Opt D\"],\"correctAnswerIndex\":0}]}";
+                + "{\"difficulty\":\"" + difficulty
+                + "\",\"questions\":[{\"prompt\":\"Question text?\",\"options\":[\"Opt A\",\"Opt B\",\"Opt C\",\"Opt D\"],\"correctAnswerIndex\":0}]}";
 
         String rawResponse = activeStrategy.generateResponse(prompt, context);
         Quiz quiz;
@@ -194,7 +212,8 @@ public class AgentController {
             quiz = (Quiz) quizFactory.createMaterial(subjectId, rawResponse);
         } catch (IllegalArgumentException firstError) {
             String fallbackJson = "{\"difficulty\":\"" + difficulty + "\",\"questions\":["
-                    + "{\"prompt\":\"Which pattern decouples LLM providers in " + subjectId + "?\",\"options\":[\"Strategy\",\"Singleton\",\"Prototype\",\"Bridge\"],\"correctAnswerIndex\":0},"
+                    + "{\"prompt\":\"Which pattern decouples LLM providers in " + subjectId
+                    + "?\",\"options\":[\"Strategy\",\"Singleton\",\"Prototype\",\"Bridge\"],\"correctAnswerIndex\":0},"
                     + "{\"prompt\":\"In Design by Contract, who is responsible for satisfying the precondition?\",\"options\":[\"Client\",\"Supplier\",\"Observer\",\"Garbage Collector\"],\"correctAnswerIndex\":0}]}";
             quiz = (Quiz) quizFactory.createMaterial(subjectId, fallbackJson);
         }
@@ -218,8 +237,7 @@ public class AgentController {
 
         String aiOutput = activeStrategy.generateResponse(
                 "Create a concise Java programming practice problem statement for the topic: " + topic,
-                Collections.emptyList()
-        );
+                Collections.emptyList());
         return new CodingProblem(
                 "CS Practice Problem: " + topic,
                 aiOutput,
@@ -232,43 +250,108 @@ public class AgentController {
                         + "        return \"Processed: \" + input;\n"
                         + "    }\n"
                         + "}",
-                "Adhere to SOLID & DbC principles; validate all input preconditions."
-        );
+                "Adhere to SOLID & DbC principles; validate all input preconditions.");
     }
 
-    public GradeEvaluation evaluateSolution(CodingProblem problem, String userSolution) throws Exception {
-        String trimmed = userSolution == null ? "" : userSolution.trim();
-        if (trimmed.length() < 10 || (!trimmed.contains(" ") && !trimmed.contains("{") && !trimmed.contains(";"))) {
-            throw new IllegalArgumentException("Please enter a valid answer before submitting (empty or gibberish input detected).");
+    public GradeEvaluation evaluateSolution(CodingProblem problem, String userSolution) {
+        if (userSolution == null || userSolution.isBlank()) {
+            throw new IllegalArgumentException("Please enter a valid answer before submitting.");
+        }
+        String trimmed = userSolution.trim();
+        if (trimmed.length() < 15 || !(trimmed.contains("class") || trimmed.contains("interface")
+                || trimmed.contains("public") || trimmed.contains("void") || trimmed.contains("return"))) {
+            throw new IllegalArgumentException("Please enter a valid answer before submitting.");
         }
 
-        String prompt = "Evaluate this student Java solution for the problem '" + problem.getProblemTitle()
-                + "'. Provide constructive feedback and 1-2 hints:\n\n" + trimmed;
-        String aiOutput = activeStrategy.generateResponse(prompt, Collections.singletonList(problem.getDescription()));
+        // Reject unmodified starter code if the user immediately clicks Grade without
+        // writing code
+        if (problem != null && problem.getStarterCode() != null
+                && trimmed.equals(problem.getStarterCode().trim())) {
+            return new GradeEvaluation(
+                    10,
+                    "You submitted the unmodified starter code template without implementing the solution.",
+                    List.of(
+                            "Implement the required interface and concrete strategy classes before grading.",
+                            "Replace the '// TODO' comments with working Java logic."));
+        }
 
-        int score = 70;
+        String problemContext = (problem != null)
+                ? problem.getProblemTitle() + "\n" + problem.getDescription() + "\nConstraints: "
+                        + problem.getConstraints()
+                : "Java Software Design Problem";
+
+        String prompt = "You are a strict EECS 3311 Java Software Design grader.\n"
+                + "Problem:\n" + problemContext + "\n\n"
+                + "Student Submission:\n" + trimmed + "\n\n"
+                + "Grading Rules:\n"
+                + "1. Your VERY FIRST LINE must be exactly in the format: SCORE: X/100 (where X is an integer 0 to 100).\n"
+                + "2. If the submission is truncated, incomplete, only a stub (like just 'public static void main'), or missing the required classes/methods, you MUST give a low score between 5 and 35.\n"
+                + "3. Only award 80-100 if the code is a complete, working implementation that satisfies the design pattern and constraints.\n"
+                + "4. Below the SCORE line, provide brief constructive feedback.";
+
+        int score = -1;
+        String feedbackText = "";
+
+        try {
+            String rawLlm = activeStrategy.generateResponse(prompt, List.of(problemContext));
+            if (rawLlm != null && !rawLlm.isBlank()) {
+                feedbackText = rawLlm.trim();
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("SCORE:\\s*(\\d{1,3})", java.util.regex.Pattern.CASE_INSENSITIVE)
+                        .matcher(feedbackText);
+                if (m.find()) {
+                    score = Math.min(100, Math.max(0, Integer.parseInt(m.group(1))));
+                    // Remove the first SCORE line so StudyWorkspacePanel doesn't print SCORE twice
+                    feedbackText = feedbackText
+                            .replaceFirst("(?i)^\\s*\\**SCORE:\\s*\\d{1,3}\\s*(/\\s*100)?\\**\\s*\\R?", "").trim();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        // Fallback scoring if running offline in JUnit tests or if LLM omitted the
+        // SCORE header
+        if (score < 0) {
+            boolean looksIncomplete = trimmed.length() < 90
+                    || !trimmed.contains("{")
+                    || !trimmed.contains("}")
+                    || feedbackText.toLowerCase().contains("truncated")
+                    || feedbackText.toLowerCase().contains("incomplete");
+
+            if (looksIncomplete) {
+                score = 20;
+            } else {
+                score = 82;
+                if (trimmed.contains("implements") || trimmed.contains("interface"))
+                    score += 8;
+                if (trimmed.contains("throw") || trimmed.contains("!= null"))
+                    score += 6;
+                score = Math.min(98, score);
+            }
+        }
+
+        if (feedbackText.isBlank()) {
+            feedbackText = (score >= 80)
+                    ? "Solid implementation of the required OOP structure and polymorphism constraints."
+                    : "Submission is incomplete or missing core class and method implementations.";
+        }
+
         List<String> hints = new ArrayList<>();
-        if (trimmed.contains("class ") || trimmed.contains("public ")) {
-            score += 12;
-        } else {
-            hints.add("Declare explicit public/private visibility modifiers matching your UML specification.");
+        if (!trimmed.contains("throw") && !trimmed.contains("IllegalArgumentException")) {
+            hints.add(
+                    "Add Design by Contract precondition checks (e.g., if (input == null) throw new IllegalArgumentException()).");
         }
-        if (trimmed.contains("if") || trimmed.contains("throw") || trimmed.contains("assert")) {
-            score += 13;
-        } else {
-            hints.add("Add Design by Contract precondition checks (e.g., if (input == null) throw new IllegalArgumentException()).");
-        }
-        if (!trimmed.contains("TODO")) {
-            score += 5;
-        } else {
-            hints.add("Replace the // TODO placeholder comment with your complete method implementation.");
+        if (!trimmed.contains("private")) {
+            hints.add("Encapsulate internal fields using 'private final' to prevent representation exposure.");
         }
         if (hints.isEmpty()) {
-            hints.add("Solid structure! Consider writing JUnit 5 Boundary-Value Analysis tests for edge cases.");
+            hints.add("Good adherence to SOLID encapsulation and Design by Contract checks.");
         }
 
-        return new GradeEvaluation(Math.min(100, score), aiOutput, hints);
+        return new GradeEvaluation(score, feedbackText, hints);
     }
 
-    public LLMStrategy getActiveStrategy() { return activeStrategy; }
+    public LLMStrategy getActiveStrategy() {
+        return activeStrategy;
+    }
 }

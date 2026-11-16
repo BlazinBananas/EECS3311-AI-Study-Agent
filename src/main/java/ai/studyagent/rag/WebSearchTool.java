@@ -34,7 +34,7 @@ public class WebSearchTool {
         List<WebSnippet> snippets = new ArrayList<>();
         String encoded = URLEncoder.encode(query.trim(), StandardCharsets.UTF_8);
 
-        // 1. Live Wikipedia Full-Text Search API (returns real article snippets for any question)
+        // 1. Live Wikipedia Full-Text Search API
         String wikiSearchUrl = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch="
                 + encoded + "&utf8=1&format=json&srlimit=3";
 
@@ -56,14 +56,16 @@ public class WebSearchTool {
                     String title = item.get("title").getAsString();
                     String rawSnippet = item.get("snippet").getAsString();
                     String cleanSnippet = stripHtmlTags(rawSnippet);
+                    String fullSummary = fetchFullSummaryExtract(title, cleanSnippet);
                     String articleUrl = "https://en.wikipedia.org/wiki/"
                             + URLEncoder.encode(title.replace(" ", "_"), StandardCharsets.UTF_8);
-                    snippets.add(new WebSnippet(title, articleUrl, cleanSnippet));
+                    snippets.add(new WebSnippet(title, articleUrl, fullSummary));
                 }
             }
         }
 
-        // 2. Secondary Check: DuckDuckGo Instant Answer API if Wikipedia returned nothing
+        // 2. Secondary Check: DuckDuckGo Instant Answer API if Wikipedia returned
+        // nothing
         if (snippets.isEmpty()) {
             String ddgUrl = "https://api.duckduckgo.com/?q=" + encoded + "&format=json&no_html=1&skip_disambig=1";
             HttpRequest ddgReq = HttpRequest.newBuilder()
@@ -79,8 +81,7 @@ public class WebSearchTool {
                     snippets.add(new WebSnippet(
                             ddgRoot.get("Heading").getAsString(),
                             ddgRoot.get("AbstractURL").getAsString(),
-                            ddgRoot.get("AbstractText").getAsString()
-                    ));
+                            ddgRoot.get("AbstractText").getAsString()));
                 }
             }
         }
@@ -91,8 +92,30 @@ public class WebSearchTool {
         return snippets;
     }
 
+    private String fetchFullSummaryExtract(String title, String fallbackSnippet) {
+        try {
+            String encodedTitle = URLEncoder.encode(title.replace(" ", "_"), StandardCharsets.UTF_8);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodedTitle))
+                    .header("User-Agent", "EECS3311-StudyAgent/2.0")
+                    .timeout(Duration.ofSeconds(4))
+                    .GET()
+                    .build();
+            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 200) {
+                JsonObject obj = JsonParser.parseString(resp.body()).getAsJsonObject();
+                if (obj.has("extract") && !obj.get("extract").getAsString().isBlank()) {
+                    return obj.get("extract").getAsString();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return fallbackSnippet;
+    }
+
     private String stripHtmlTags(String html) {
-        if (html == null) return "";
+        if (html == null)
+            return "";
         return html.replaceAll("<[^>]*>", "")
                 .replace("&quot;", "\"")
                 .replace("&#039;", "'")
